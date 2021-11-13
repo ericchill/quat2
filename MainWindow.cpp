@@ -127,6 +127,9 @@ void MainWindow::Image_AdjustWindow_cb(Fl_Widget*, void* v) {
 }
 
 void MainWindow::Image_Exit_cb(Fl_Widget*, void* v) {
+    if (Fl::event() == FL_SHORTCUT && Fl::event_key() == FL_Escape) {
+        return; // ignore Escape
+    }
     reinterpret_cast<MainWindow*>(v)->Image_Exit();
 }
 
@@ -673,6 +676,12 @@ void MainWindow::Help_About() {
 }
 
 void MainWindow::Image_Exit() {
+    if (InCalc) {
+        if (fl_choice("Render in progress. Do you really want to exit?",
+            "No", "Yes", NULL) == 0) {
+            return;
+        }
+    }
     if (ImgChanged || ZBufChanged) {
         if (fl_choice("There are unsaved modifications. Do you really want to exit?",
             "No", "Yes", NULL) == 0) {
@@ -719,16 +728,19 @@ void MainWindow::Calculation_StartImage() {
     const int pixels_per_check = 1;
 #endif
     i = CreateImage(Error, sizeof(Error), &imgxstart, &imgystart, _fractal, pixels_per_check, zflag, *this);
-    InCalc = false;
     if (i == 0 || i == -2 || i == -128) {
-        ImgInMem = true; ImgReady = false;
+        ImgInMem = true;
+        ImgReady = false;
         ImgChanged = true;
     }
     if (imgystart == _fractal.view()._yres) {
         ImgReady = true;
     }
+    InCalc = false;
     if (i != -2) {
-        if (Error[0] != 0) fl_alert("%s", Error);
+        if (Error[0] != 0) {
+            fl_alert("%s", Error);
+        }
         status_text.seekp(0);
         update();
     }

@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iostream>
 #include <memory>
+#include <type_traits>
 
 #include "json.h"
 
@@ -10,6 +11,7 @@
 #define CUDA_CALLABLE __host__ __device__
 #else
 #define CUDA_CALLABLE
+#include <intrin.h>
 #endif
 
 #define TOO_SMALL(x) (fabs(x) < 1e-100)
@@ -116,6 +118,7 @@ std::ostream& operator<<(std::ostream& oo, const vec3& v);
 void tag_invoke(const json::value_from_tag&, json::value& jv, vec3 const& t);
 
 vec3 tag_invoke(const json::value_to_tag< vec3 >&, json::value const& jv);
+
 
 
 template<typename T>
@@ -248,7 +251,6 @@ public:
             2 * _q[0] * _q[2],
             2 * _q[0] * _q[3]);
     }
-
     CUDA_CALLABLE Quaternion<T> componentMul(const Quaternion<T>& b) const {
         Quaternion<T> res = *this;
         for (int i = 0; i < 4; i++) {
@@ -296,7 +298,7 @@ CUDA_CALLABLE Quaternion<T> operator*(T s, const Quaternion<T>& q) {
 
 template<typename T>
 CUDA_CALLABLE Quaternion<T> operator/(T s, const Quaternion<T>& q) {
-    return reciprocal() * s;
+    return q.reciprocal() * s;
 }
 
 template<typename T>
@@ -345,3 +347,37 @@ CUDA_CALLABLE Quaternion<T> pow(const Quaternion<T>& x, const Quaternion<T>& y) 
 
 
 typedef Quaternion<double> Quat;
+
+template<>
+std::ostream& operator<<(std::ostream& oo, const Quaternion<double>& q);
+
+
+#ifndef __NVCC__
+inline void intrinsicSquared(double* in, double* out) {
+    alignas(32) double real2[4];
+    register __m256d q = _mm256_load_pd(in);
+    register __m256d re2 = _mm256_mul_pd(q, q);
+    _mm256_store_pd(real2, re2);
+    __m128d q0scalar = _mm_load_pd(in);
+    __m256d q0 = _mm256_broadcastsd_pd(q0scalar);
+    __m256d allByQ0 = _mm256_mul_pd(q0, q);
+    allByQ0 = _mm256_add_pd(allByQ0, allByQ0);
+    _mm256_store_pd(out, allByQ0);
+    out[0] = real2[0] - real2[1] - real2[2] - real2[3];
+}
+#endif
+
+template<>
+Quaternion<double> Quaternion<double>::squared() const {
+#ifndef __NVCC__
+    double result[4];
+    intrinsicSquared((double*)_q, result);
+    return Quaternion(result);
+#else
+    return Quaternion<double>(
+        _q[0] * _q[0] - _q[1] * _q[1] - _q[2] * _q[2] - _q[3] * _q[3],
+        2 * _q[0] * _q[1],
+        2 * _q[0] * _q[2],
+        2 * _q[0] * _q[3]);
+#endif
+}

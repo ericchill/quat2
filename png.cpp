@@ -32,11 +32,9 @@
 #include "png.h"
 
 
+static uint8_t PaethPredictor(long a, long b, long c);
 
-int do_deflate(png_internal_struct* i);
-uint8_t PaethPredictor(uint8_t a, uint8_t b, uint8_t c);
-
-/* NOTE: In this (new) version of PNG.C the buffer "readbuf" in */
+/* NOTE: In this (new) version of PNG.C the buffer "_readbuf" in */
 /* png_internal_struct is allocated via malloc */
 /* a call of EndPNG() is needed after use of these structure */
 /* to deallocate the buffer */
@@ -63,13 +61,13 @@ void make_crc_table(void) {
 }
 
 uint32_t update_crc(uint32_t crc, const uint8_t* buf, size_t len) {
-    unsigned long newCRC = crc;
+    uint32_t newCRC = crc;
 
     if (!crc_table_computed) {
         make_crc_table();
     }
     for (int n = 0; n < len; n++) {
-        newCRC = crc_table[(int)((newCRC ^ (long)buf[n]) & 0xffL)] ^ (newCRC >> 8);
+        newCRC = crc_table[(newCRC ^ buf[n]) % 256] ^ (newCRC >> 8);
     }
     return newCRC;
 }
@@ -104,203 +102,472 @@ uint32_t readLong(FILE* fd) {
     return bytes2ulong(longBuf);
 }
 
-int InitPNG(FILE* png,
-    png_info_struct* info,
-    png_internal_struct* internal) {
+
+PNGFile::PNGFile(FILE* pngFD, png_info_struct* info) :
+    _readbuf(nullptr),
+    _buf_filled(0),
+    _position(0),
+    _chunk_pos(0),
+    _zlib_initialized(false)
+{
     unsigned char sig[sizeof(png_signature)], infoBuf[100];
+    setDefaultInfo();
 
-    internal->readbuf_initialized = 0;     /* for EndPNG, if no valid file */
-    internal->png = png;
-    fseek(internal->png, 0L, SEEK_SET);
-    fread(sig, 1, sizeof(sig), internal->png);
+    _fd = pngFD;
+    fseek(_fd, 0L, SEEK_SET);
+    fread(sig, 1, sizeof(sig), _fd);
     if (0 != memcmp(sig, png_signature, sizeof(sig))) {
-        return -1;
+        throw PNGException("Bad signature for PNG file.");
     }
-    /*   if (strncmp(sig, png_signature, 8)!=0) return(-1); */
-    internal->length = readLong(internal->png);
-    fread(internal->chunk_type, 1, sizeof(internal->chunk_type), internal->png);
-    if (0 != memcmp(internal->chunk_type, image_head_label, sizeof(internal->chunk_type))) {
-        return -1;
+    _length = readLong(_fd);
+    fread(_chunk_type, 1, sizeof(_chunk_type), _fd);
+    if (0 != memcmp(_chunk_type, image_head_label, sizeof(_chunk_type))) {
+        throw PNGException("No PNG header");
     }
-    size_t png_info_length = std::max(internal->length, sizeof(png_info_struct));
-    fread_s(infoBuf, sizeof(infoBuf), 1, png_info_length, internal->png);
-    info->width = bytes2ulong(&infoBuf[0]);
-    info->height = bytes2ulong(&infoBuf[4]);
-    info->bit_depth = infoBuf[8];
-    info->color_type = infoBuf[9];
-    info->compression = infoBuf[10];
-    info->filter = infoBuf[11];
-    info->interlace = infoBuf[12];
-    internal->crc = readLong(internal->png);
-    memcpy(internal, info, sizeof(png_info_struct));
-    internal->PLTE = 0;
-    internal->position = 0;
-    internal->zlib_initialized = false;
-    internal->readbuf_initialized = false;
-    internal->buf_filled = 0;
-    internal->chunk_pos = 0;
-    internal->readbuf = NULL;
+    size_t png_info_length = std::max(_length, sizeof(png_info_struct));
+    fread_s(infoBuf, sizeof(infoBuf), 1, png_info_length, _fd);
+    _info.width = bytes2ulong(&infoBuf[0]);
+    _info.height = bytes2ulong(&infoBuf[4]);
+    _info.bit_depth = infoBuf[8];
+    _info.color_type = infoBuf[9];
+    if (2 != _info.color_type) {
+        throw PNGException("PNG File must use RGB color.");
+    }
+    _info.compression = infoBuf[10];
+    _info.filter = infoBuf[11];
+    _info.interlace = infoBuf[12];
+    _crc = readLong(_fd);
+    memcpy(info, &_info, sizeof(_info));
+}
+
+PNGFile::~PNGFile() {
+    if (nullptr != _readbuf) {
+        delete _readbuf;
+    }
+}
+
+int PNGFile::GetNextChunk() {
+    if (_position == 1) {
+        fseek(_fd, (long)_length + 4, SEEK_CUR);
+    } else if (_position == 2) {
+        fseek(_fd, 4L, SEEK_CUR);
+    }
+    _position = 1;
+    _length = readLong(_fd);
+    fread_s(_chunk_type, sizeof(_chunk_type), 1, sizeof(_chunk_type), _fd);
     return 0;
 }
 
-int GetNextChunk(png_internal_struct* i) {
-    if (i->position == 1) {
-        fseek(i->png, (long)i->length + 4, SEEK_CUR);
-    } else if (i->position == 2) {
-        fseek(i->png, 4L, SEEK_CUR);
-    }
-    i->position = 1;
-    i->length = readLong(i->png);
-    fread_s(i->chunk_type, sizeof(i->chunk_type), 1, sizeof(i->chunk_type), i->png);
-    if (checkChunkType(i, palette_chunk_label)) {
-        i->PLTE++;
-    }
-    return 0;
-}
-
-int ReadChunkData(png_internal_struct* i, uint8_t* mem) {
+int PNGFile::ReadChunkData(uint8_t* mem) {
     unsigned long checksum;
 
-    if (i->position != 1) {
+    if (_position != 1) {
         return -1;
     }
-    i->mem_ptr = mem;
-    fread(i->mem_ptr, 1, i->length, i->png);
-    i->crc = readLong(i->png);
-    checksum = update_crc(0xffffffffL, (unsigned char*)i->chunk_type, sizeof(i->chunk_type));
-    checksum = update_crc(checksum, i->mem_ptr, i->length);
+    _mem_ptr = mem;
+    fread(_mem_ptr, 1, _length, _fd);
+    _crc = readLong(_fd);
+    checksum = update_crc(0xffffffffL, (unsigned char*)_chunk_type, sizeof(_chunk_type));
+    checksum = update_crc(checksum, _mem_ptr, _length);
     checksum ^= 0xffffffffL;
-    if (checksum != i->crc) {
+    if (checksum != _crc) {
         return -2;
     }
-    i->position = 0;
+    _position = 0;
 
     return 0;
 }
 
-int do_inflate(struct png_internal_struct* i) {
+int PNGFile::do_inflate() {
     int err;
 
-    if (!i->zlib_initialized) {
-        i->zlib_initialized = true;
-        i->d_stream.zalloc = (alloc_func)0;
-        i->d_stream.zfree = (free_func)0;
+    if (!_zlib_initialized) {
+        _zlib_initialized = true;
+        _d_stream.zalloc = nullptr;
+        _d_stream.zfree = nullptr;
 
-        err = inflateInit(&i->d_stream);
+        err = inflateInit(&_d_stream);
     }
-    err = inflate(&i->d_stream, Z_NO_FLUSH);
+    err = inflate(&_d_stream, Z_NO_FLUSH);
 
     if (err == Z_STREAM_END) {
-        err = inflateEnd(&i->d_stream);
+        err = inflateEnd(&_d_stream);
         return 10;
     }
     return err;
 }
 
-int ReadPNGLine(png_internal_struct* i, unsigned char* Buf) {
+int PNGFile::ReadPNGLine(unsigned char* Buf) {
     size_t toread;
     int err;
-    int ByPP;
+    int bytesPerPixel;
 
     /* Test, if chunk is IDAT */
-    if (!checkChunkType(i, image_data_label)) {
+    if (!checkChunkType(image_data_label)) {
         return -1;
     }
 
     /* Initialize on first call */
-    if (i->chunk_pos == 0) {
-        i->checksum = update_crc(0xffffffffL, i->chunk_type, 4);
+    if (0 == _chunk_pos) {
+        _checksum = update_crc(0xffffffffL, _chunk_type, sizeof(_chunk_type));
     }
-    if (!i->readbuf_initialized) {
-        i->readbuf = new uint8_t[png_bufsize];
-        i->readbuf_initialized = true;
+    if (nullptr == _readbuf) {
+        _readbuf = new uint8_t[png_bufsize];
     }
 
-    if (0 == i->buf_filled) {
-        toread = std::max(static_cast<size_t>(i->length - i->chunk_pos), png_bufsize);
-        i->buf_filled = fread(i->readbuf, 1, toread, i->png);
-        if (0 == i->buf_filled) {
+    if (0 == _buf_filled) {
+        toread = std::max(static_cast<size_t>(_length - _chunk_pos), png_bufsize);
+        _buf_filled = fread(_readbuf, 1, toread, _fd);
+        if (0 == _buf_filled) {
             return -1;
         }
-        i->buf_pos = 0;
-        i->chunk_pos += i->buf_filled;
-        i->checksum = update_crc(i->checksum, i->readbuf, toread);
+        _buf_pos = 0;
+        _chunk_pos += _buf_filled;
+        _checksum = update_crc(_checksum, _readbuf, toread);
     }
 
-    ByPP = (int)ceil((float)i->bit_depth / 8);
-    if (i->color_type == 2) {
-        ByPP *= 3;
-    }
+    bytesPerPixel = 3 * static_cast<int>(ceil(static_cast<float>(_info.bit_depth) / 8));
 
     /* Only decompress a single line & filter uint8_t */
-    i->d_stream.avail_out = (int)(i->width * ByPP + 1);
-    i->d_stream.next_out = Buf;
-
-    if (i->color_type == 3) {
-        switch (i->bit_depth) {
-        case 1: i->d_stream.avail_out = (int)(i->width / 8 + 1); break;
-        case 2: i->d_stream.avail_out = (int)(i->width / 4 + 1); break;
-        case 4: i->d_stream.avail_out = (int)(i->width / 2 + 1); break;
-        }
-    }
+    _d_stream.avail_out = static_cast<int>((_info.width * bytesPerPixel + 1));
+    _d_stream.next_out = Buf;
 
     do {
-        i->d_stream.next_in = i->readbuf + i->buf_pos;
-        i->d_stream.avail_in = static_cast<uInt>(i->buf_filled - i->buf_pos);
-        err = do_inflate(i);
-        i->buf_pos = i->d_stream.next_in - i->readbuf;
+        _d_stream.next_in = _readbuf + _buf_pos;
+        _d_stream.avail_in = static_cast<uInt>(_buf_filled - _buf_pos);
+        err = do_inflate();
+        _buf_pos = _d_stream.next_in - _readbuf;
 
         /* ready ? */
-        if (i->d_stream.avail_out == 0) {
+        if (0 == _d_stream.avail_out) {
             break;
         }
         /* no process made */
-        if (i->d_stream.avail_out != 0 || i->buf_pos == i->buf_filled) {
+        if (_d_stream.avail_out != 0 || _buf_pos == _buf_filled) {
             /* because chunk at end */
-            if (i->chunk_pos == i->length) {
+            if (_chunk_pos == _length) {
                 /* verify crc */
-                i->checksum ^= 0xffffffffL;
-                i->crc = readLong(i->png);
-                i->position = 0;
-                if (i->checksum != i->crc) {
+                _checksum ^= 0xffffffffL;
+                _crc = readLong(_fd);
+                _position = 0;
+                if (_checksum != _crc) {
                     return -2;
                 }
                 /* read next chunk header */
-                i->length = readLong(i->png);
-                fread_s(i->chunk_type, sizeof(i->chunk_type), sizeof(i->chunk_type), 1, i->png);
-                i->position = 1;
+                _length = readLong(_fd);
+                fread_s(_chunk_type, sizeof(_chunk_type), sizeof(_chunk_type), 1, _fd);
+                _position = 1;
                 /* is it an IDAT chunk? */
-                if (0 != memcmp(i->chunk_type, image_data_label, sizeof(i->chunk_type))) {
+                if (0 != memcmp(_chunk_type, image_data_label, sizeof(_chunk_type))) {
                     return -3;
                 }
-                /* initialize checksum */
-                i->checksum = update_crc(0xffffffffL, i->chunk_type, sizeof(i->chunk_type));
+                /* initialize _checksum */
+                _checksum = update_crc(0xffffffffL, _chunk_type, sizeof(_chunk_type));
                 /* prepare reading chunk data */
-                i->chunk_pos = 0;
-                toread = std::max(i->length, png_bufsize);
-                i->buf_filled = fread_s(i->readbuf, png_bufsize, 1, toread, i->png);
-                if (0 == i->buf_filled) {
+                _chunk_pos = 0;
+                toread = std::max(_length, png_bufsize);
+                _buf_filled = fread_s(_readbuf, png_bufsize, 1, toread, _fd);
+                if (0 == _buf_filled) {
                     return -1;
                 }
-                i->buf_pos = 0;
-                i->chunk_pos += i->buf_filled;
-                i->checksum = update_crc(i->checksum, i->readbuf, toread);
+                _buf_pos = 0;
+                _chunk_pos += _buf_filled;
+                _checksum = update_crc(_checksum, _readbuf, toread);
             } else {
                 /* because 2K buffer at end */
-                toread = std::max(static_cast<size_t>(i->length - i->chunk_pos), png_bufsize);
-                i->buf_filled = fread_s(i->readbuf, png_bufsize, 1, toread, i->png);
-                if (0 == i->buf_filled) {
+                toread = std::max(static_cast<size_t>(_length - _chunk_pos), png_bufsize);
+                _buf_filled = fread_s(_readbuf, png_bufsize, 1, toread, _fd);
+                if (0 == _buf_filled) {
                     return -1;
                 }
-                i->buf_pos = 0;
-                i->chunk_pos += i->buf_filled;
-                i->checksum = update_crc(i->checksum, i->readbuf, toread);
+                _buf_pos = 0;
+                _chunk_pos += _buf_filled;
+                _checksum = update_crc(_checksum, _readbuf, toread);
             }
         }
-    } while (i->d_stream.avail_out != 0);
+    } while (_d_stream.avail_out != 0);
 
     return 0;
 }
+
+
+int PNGFile::DoUnFiltering(uint8_t* Buf, uint8_t* Buf_up) {
+    unsigned long bytesPerPixel;
+    long up, prior, upperleft;
+
+    bytesPerPixel = 3 * (unsigned long)ceil((float)_info.bit_depth / 8.0);
+
+    switch (Buf[0]) {
+    case 0: break;       /* No filter */
+    case 1:              /* Sub */
+        for (size_t uj = bytesPerPixel + 1; uj <= _info.width * bytesPerPixel; uj++) {
+            Buf[uj] = (Buf[uj] + Buf[uj - bytesPerPixel]) % 256;
+        }
+        Buf[0] = 0;
+        break;
+    case 2:              /* Up */
+        if (Buf_up == NULL) {
+            Buf[0] = 0;
+            return 0; /* according to png spec. it is assumed that */
+                       /* Buf_up is zero everywhere */
+        }
+        for (size_t uj = 1; uj <=_info.width * bytesPerPixel; uj++) {
+            Buf[uj] = (Buf[uj] + Buf_up[uj]) % 256;
+        }
+        Buf[0] = 0;
+        break;
+    case 3:             /* Average */
+        for (size_t uj = 1; uj <= _info.width * bytesPerPixel; uj++) {
+            if (uj > bytesPerPixel) {
+                prior = Buf[uj - bytesPerPixel];
+            } else {
+                prior = 0;
+            }
+            if (Buf_up != NULL) {
+                up = Buf_up[uj];
+            } else {
+                up = 0;
+            }
+            Buf[uj] = (Buf[uj] + ((prior + up) >> 1)) % 256;
+        }
+        Buf[0] = 0;
+        break;
+    case 4:             /* Paeth */
+        for (size_t uj = 1; uj <= _info.width * bytesPerPixel; uj++) {
+            if (Buf_up != NULL) {
+                up = Buf_up[uj];
+            } else {
+                up = 0;
+            }
+            if (uj > bytesPerPixel) {
+                prior = Buf[uj - bytesPerPixel];
+            } else {
+                prior = 0;
+            }
+            if (uj > bytesPerPixel && Buf_up != NULL) {
+                upperleft = Buf_up[uj - bytesPerPixel];
+            } else {
+                upperleft = 0;
+            }
+            Buf[uj] = static_cast<uint8_t>((Buf[uj] + PaethPredictor(prior, up, upperleft)) % 256);
+        }
+        Buf[0] = 0;
+        break;
+    }
+    return 0;
+}
+
+int PNGFile::DoFiltering(unsigned char* Buf) {
+    if (Buf[0] == 0) {
+        return 0; /* No filter */
+    }
+    if (Buf[0] == 1) {
+        /* Sub       */
+        int bytesPerPixel = 3 * (int)ceil((double)_info.bit_depth / 8);
+        for (int j = (int)_info.width * bytesPerPixel; j >= bytesPerPixel + 1; j--) {
+            int t = ((int)Buf[j] - (int)Buf[j - bytesPerPixel]);
+            if (t < 0) t += 256;
+            Buf[j] = t % 256;
+        }
+    }
+    return 0;
+}
+
+int PNGFile::InitWritePNG(FILE* png) {
+    unsigned long length, crc_v;
+    unsigned char Buf[20];
+
+    _fd = png;
+    if (fwrite(png_signature, 1, 8, _fd) != 8) {
+        return -1;
+    }
+    _length = length = 13;
+    ulong2bytes(length, Buf);
+    if (fwrite(Buf, 1, 4, _fd) != 4) {
+        return -1;
+    }
+    if (fwrite(image_head_label, 1, 4, _fd) != 4) {
+        return -1;
+    }
+    ulong2bytes(_info.width, Buf);
+    ulong2bytes(_info.height, Buf + 4);
+    Buf[8] = _info.bit_depth;
+    Buf[9] = _info.color_type;
+    Buf[10] = _info.compression;
+    Buf[11] = _info.filter;
+    Buf[12] = _info.interlace;
+    if (fwrite(Buf, 1, 13, png) != 13) {
+        return -1;
+    }
+    crc_v = update_crc(0xffffffffL, (unsigned char*)image_head_label, 4);
+    crc_v = update_crc(crc_v, Buf, (long)_length);
+    crc_v ^= 0xffffffffL;
+    ulong2bytes(crc_v, Buf);
+    if (fwrite(Buf, 1, 4, _fd) != 4) {
+        return -1;
+    }
+    memcpy(_chunk_type, image_head_label, sizeof(_chunk_type));
+    _chunk_pos = 0;
+
+    return 0;
+}
+
+bool PNGFile::WriteChunk(unsigned char* buf, int size) {
+    uint32_t crc_v;
+    uint8_t longBuf[sizeof(uint32_t)];
+
+    if (size == -1) {
+        _length = size;
+    }
+
+    ulong2bytes(static_cast<uint32_t>(_length), longBuf);
+    size_t written = fwrite(longBuf, sizeof(longBuf), 1, _fd);
+    if (written != 1) {
+        return false;
+    }
+    if (fwrite(_chunk_type, 1, sizeof(_chunk_type), _fd) != sizeof(_chunk_type)) {
+        return false;
+    }
+    if (fwrite(buf, 1, _length, _fd) != _length) {
+        return false;
+    }
+    crc_v = update_crc(0xffffffffL, const_cast<const uint8_t*>(_chunk_type), sizeof(_chunk_type));
+    crc_v = update_crc(crc_v, buf, _length);
+    crc_v ^= 0xffffffffL;
+    ulong2bytes(crc_v, longBuf);
+    if (fwrite(longBuf, sizeof(longBuf), 1, _fd) != 1) {
+        return false;
+    }
+    _position = 0;
+
+    return true;
+}
+
+int PNGFile::do_deflate() {
+    int err;
+
+    if (!_zlib_initialized) {
+        _zlib_initialized = true;
+        _d_stream.zalloc = nullptr;
+        _d_stream.zfree = nullptr;
+        err = deflateInit(&_d_stream, Z_DEFAULT_COMPRESSION);
+    }
+    err = deflate(&_d_stream, Z_NO_FLUSH);
+
+    return err;
+}
+
+int PNGFile::WritePNGLine(uint8_t* Buf) {
+    int err;
+    int bytesPerPixel;
+
+    /* Initialize on first call */
+    if (0 == _chunk_pos) {
+        _checksum = update_crc(0xffffffffL, image_data_label, sizeof(_chunk_type));
+        if (fwrite(&_info, 1, 4, _fd) != 4) {
+            return -1;   /* length as dummy */
+        }
+        if (fwrite("IDAT", 1, 4, _fd) != 4) {
+            return -1;
+        }
+    }
+    if (nullptr == _readbuf) {
+        _readbuf = new uint8_t[png_bufsize];
+    }
+
+    bytesPerPixel = 3 * (int)ceil((double)_info.bit_depth / 8);
+
+    _d_stream.avail_in = (int)((_info.width) * bytesPerPixel + 1); /* Only compress a single line */
+    _d_stream.next_in = Buf;
+
+    do {
+        _d_stream.next_out = _readbuf;
+        _d_stream.avail_out = png_bufsize;
+        err = do_deflate();
+
+        _buf_pos = (int)(_d_stream.next_out - _readbuf);
+        _checksum = update_crc(_checksum, _readbuf, _buf_pos);
+        if (fwrite(_readbuf, 1, _buf_pos, _fd) != _buf_pos) {
+            return -1;
+        }
+        _chunk_pos += _buf_pos;
+    } while (_d_stream.avail_out == 0);
+
+    return 0;
+}
+
+int PNGFile::EndIDAT() {
+    int err;
+    uint8_t longBuf[sizeof(uint32_t)];
+
+    if (NULL == _readbuf) {
+        return -1;  /* EndIDAT called too early */
+    }
+    do {
+        _d_stream.next_out = _readbuf;
+        _d_stream.avail_out = png_bufsize;
+        err = deflate(&_d_stream, Z_FINISH);
+        _buf_pos = (int)(_d_stream.next_out - _readbuf);
+        if (fwrite(_readbuf, 1, _buf_pos, _fd) != _buf_pos) {
+            return -1;
+        }
+        _chunk_pos += _buf_pos;
+        _checksum = update_crc(_checksum, _readbuf, _buf_pos);
+    } while (_d_stream.avail_out == 0);
+    err = deflateEnd(&_d_stream);
+
+    _checksum ^= 0xffffffffL;
+    ulong2bytes(_checksum, longBuf);
+    if (fwrite(longBuf, sizeof(longBuf), 1, _fd) != 1) {
+        return -1;
+    }
+    fseek(_fd, -(long)(_chunk_pos + 12), SEEK_CUR);
+    ulong2bytes(static_cast<uint32_t>(_chunk_pos), longBuf);
+    if (fwrite(longBuf, sizeof(longBuf), 1, _fd) != 1) {
+        return -1;
+    }
+    fseek(_fd, static_cast<unsigned long>(_chunk_pos + 8), SEEK_CUR);
+    _position = 0;
+
+    return 0;
+}
+
+int PNGFile::PosOverIEND() {
+    PNGFile last;
+
+    while (0 != memcmp(_chunk_type, image_end_label, sizeof(_chunk_type))) {
+        GetNextChunk();
+    }
+    fseek(_fd, -8, SEEK_CUR);
+    return 0;
+}
+
+int PNGFile::PosOverIHDR() {
+    fseek(_fd, 8, SEEK_SET);
+    _length = readLong(_fd);
+    fread_s(_chunk_type, sizeof(_chunk_type), 1, sizeof(_chunk_type), _fd);
+    _position = 1;
+    return 0;
+}
+
+
+void PNGFile::setChunkType(const uint8_t* chunkType) {
+    memcpy(_chunk_type, chunkType, sizeof(_chunk_type));
+}
+
+bool PNGFile::checkChunkType(const uint8_t* chunkType) {
+    return 0 == memcmp(_chunk_type, chunkType, sizeof(_chunk_type));
+}
+
+void PNGFile::setDefaultInfo() {
+    _info.bit_depth = 8;
+    _info.color_type = 2;  // RGB color
+    _info.compression = 0;
+    _info.interlace = 0;
+    _info.filter = 0;
+}
+
+
 
 uint8_t PaethPredictor(long a, long b, long c) {
     int p;
@@ -318,305 +585,4 @@ uint8_t PaethPredictor(long a, long b, long c) {
     } else {
         return static_cast<uint8_t>(c);
     }
-}
-
-int DoUnFiltering(png_internal_struct* i, uint8_t* Buf, uint8_t* Buf_up) {
-    unsigned long ByPP;
-    long up, prior, upperleft;
-
-    ByPP = (unsigned long)ceil((float)i->bit_depth / 8.0);
-    if (i->color_type == 2) {
-        ByPP *= 3;
-    }
-    switch (Buf[0]) {
-    case 0: break;       /* No filter */
-    case 1:              /* Sub */
-        for (size_t uj = ByPP + 1; uj <= i->width * ByPP; uj++) {
-            Buf[uj] = (Buf[uj] + Buf[uj - ByPP]) % 256;
-        }
-        Buf[0] = 0;
-        break;
-    case 2:              /* Up */
-        if (Buf_up == NULL) {
-            Buf[0] = 0;
-            return 0; /* according to png spec. it is assumed that */
-                       /* Buf_up is zero everywhere */
-        }
-        for (size_t uj = 1; uj <= i->width * ByPP; uj++) {
-            Buf[uj] = (Buf[uj] + Buf_up[uj]) % 256;
-        }
-        Buf[0] = 0;
-        break;
-    case 3:             /* Average */
-        for (size_t uj = 1; uj <= i->width * ByPP; uj++) {
-            if (uj > ByPP) {
-                prior = Buf[uj - ByPP];
-            } else {
-                prior = 0;
-            }
-            if (Buf_up != NULL) {
-                up = Buf_up[uj];
-            } else {
-                up = 0;
-            }
-            Buf[uj] = (Buf[uj] + ((prior + up) >> 1)) % 256;
-        }
-        Buf[0] = 0;
-        break;
-    case 4:             /* Paeth */
-        for (size_t uj = 1; uj <= i->width * ByPP; uj++) {
-            if (Buf_up != NULL) {
-                up = Buf_up[uj];
-            } else {
-                up = 0;
-            }
-            if (uj > ByPP) {
-                prior = Buf[uj - ByPP];
-            } else {
-                prior = 0;
-            }
-            if (uj > ByPP && Buf_up != NULL) {
-                upperleft = Buf_up[uj - ByPP];
-            } else {
-                upperleft = 0;
-            }
-            Buf[uj] = static_cast<uint8_t>((Buf[uj] + PaethPredictor(prior, up, upperleft)) % 256);
-        }
-        Buf[0] = 0;
-        break;
-    }
-    return 0;
-}
-
-int DoFiltering(struct png_internal_struct* i, unsigned char* Buf) {
-    int ByPP, j, t;
-
-    if (Buf[0] == 0) {
-        return 0; /* No filter */
-    }
-    if (Buf[0] == 1) {
-        /* Sub       */
-        ByPP = (int)ceil((double)i->bit_depth / 8);
-        if (i->color_type == 2) {
-            ByPP *= 3;
-        }
-        for (j = (int)i->width * ByPP; j >= ByPP + 1; j--) {
-            t = ((int)Buf[j] - (int)Buf[j - ByPP]);
-            if (t < 0) t += 256;
-            Buf[j] = t % 256;
-        }
-    }
-    return 0;
-}
-
-int InitWritePNG(FILE* png, struct png_info_struct* info, struct png_internal_struct* i) {
-    unsigned long length, crc_v;
-    unsigned char Buf[20];
-
-    i->png = png;
-    if (fwrite(png_signature, 1, 8, png) != 8) {
-        return -1;
-    }
-    i->length = length = 13;
-    ulong2bytes(length, Buf);
-    if (fwrite(Buf, 1, 4, png) != 4) {
-        return -1;
-    }
-    if (fwrite(image_head_label, 1, 4, png) != 4) {
-        return -1;
-    }
-    ulong2bytes(info->width, Buf);
-    ulong2bytes(info->height, Buf + 4);
-    Buf[8] = info->bit_depth;
-    Buf[9] = info->color_type;
-    Buf[10] = info->compression;
-    Buf[11] = info->filter;
-    Buf[12] = info->interlace;
-    if (fwrite(Buf, 1, 13, png) != 13) {
-        return -1;
-    }
-    crc_v = update_crc(0xffffffffL, (unsigned char*)image_head_label, 4);
-    crc_v = update_crc(crc_v, Buf, (long)i->length);
-    crc_v ^= 0xffffffffL;
-    ulong2bytes(crc_v, Buf);
-    if (fwrite(Buf, 1, 4, png) != 4) {
-        return -1;
-    }
-    memcpy(i, info, sizeof(png_info_struct));
-    memcpy(i->chunk_type, image_head_label, sizeof(i->chunk_type));
-    i->PLTE = 0;
-    i->position = 0;
-    i->zlib_initialized = 0;
-    i->readbuf_initialized = 0;
-    i->buf_filled = 0;
-    i->chunk_pos = 0;
-    i->readbuf = NULL;
-
-    return 0;
-}
-
-int WriteChunk(png_internal_struct* i, unsigned char* buf) {
-    uint32_t crc_v;
-    uint8_t longBuf[sizeof(uint32_t)];
-
-    ulong2bytes(static_cast<uint32_t>(i->length), longBuf);
-    size_t written = fwrite(longBuf, sizeof(longBuf), 1, i->png);
-    if (written != 1) {
-        return -1;
-    }
-    if (fwrite(i->chunk_type, 1, sizeof(i->chunk_type), i->png) != sizeof(i->chunk_type)) {
-        return -1;
-    }
-    if (fwrite(buf, 1, i->length, i->png) != i->length) {
-        return -1;
-    }
-    crc_v = update_crc(0xffffffffL, const_cast<const uint8_t*>(i->chunk_type), sizeof(i->chunk_type));
-    crc_v = update_crc(crc_v, buf, i->length);
-    crc_v ^= 0xffffffffL;
-    ulong2bytes(crc_v, longBuf);
-    if (fwrite(longBuf, sizeof(longBuf), 1, i->png) != 1) {
-        return -1;
-    }
-    i->position = 0;
-
-    return 0;
-}
-
-int do_deflate(png_internal_struct* i) {
-    int err;
-
-    if (i->zlib_initialized == 0) {
-        i->zlib_initialized = 1;
-        i->d_stream.zalloc = (alloc_func)Z_NULL;
-        i->d_stream.zfree = (free_func)Z_NULL;
-        err = deflateInit(&i->d_stream, Z_DEFAULT_COMPRESSION);
-    }
-
-    err = deflate(&i->d_stream, Z_NO_FLUSH);
-
-    return(err);
-}
-
-int WritePNGLine(png_internal_struct* i, uint8_t* Buf) {
-    int err;
-    int ByPP;
-
-    /* Initialize on first call */
-    if (i->chunk_pos == 0) {
-        i->checksum = update_crc(0xffffffffL, image_data_label, sizeof(i->chunk_type));
-        if (fwrite(i, 1, 4, i->png) != 4) {
-            return -1;   /* length as dummy */
-        }
-        if (fwrite("IDAT", 1, 4, i->png) != 4) {
-            return -1;
-        }
-    }
-    if (i->readbuf_initialized == 0) {
-        i->readbuf = new uint8_t[png_bufsize];
-        if (!i->readbuf) return(-2); /* Memory error */
-        i->readbuf_initialized = 1;
-    }
-
-    ByPP = (int)ceil((double)i->bit_depth / 8);
-    if (i->color_type == 2) {
-        ByPP *= 3;
-    }
-
-    i->d_stream.avail_in = (int)((i->width) * ByPP + 1); /* Only compress a single line */
-    i->d_stream.next_in = Buf;
-
-    if (i->color_type == 3) {
-        switch (i->bit_depth) {
-        case 1: i->d_stream.avail_in = (int)((i->width) / 8 + 1); break;
-        case 2: i->d_stream.avail_in = (int)((i->width) / 4 + 1); break;
-        case 4: i->d_stream.avail_in = (int)((i->width) / 2 + 1); break;
-        }
-    }
-
-    do {
-        i->d_stream.next_out = i->readbuf;
-        i->d_stream.avail_out = png_bufsize;
-        err = do_deflate(i);
-
-        i->buf_pos = (int)(i->d_stream.next_out - i->readbuf);
-        i->checksum = update_crc(i->checksum, i->readbuf, i->buf_pos);
-        if (fwrite(i->readbuf, 1, i->buf_pos, i->png) != i->buf_pos) {
-            return -1;
-        }
-        i->chunk_pos += i->buf_pos;
-    } while (i->d_stream.avail_out == 0);
-
-    return 0;
-}
-
-int EndIDAT(png_internal_struct* i) {
-    int err;
-    uint8_t longBuf[sizeof(uint32_t)];
-
-    if (NULL == i->readbuf) {
-        return -1;  /* EndIDAT called too early */
-    }
-    do {
-        i->d_stream.next_out = i->readbuf;
-        i->d_stream.avail_out = png_bufsize;
-        err = deflate(&i->d_stream, Z_FINISH);
-        i->buf_pos = (int)(i->d_stream.next_out - i->readbuf);
-        if (fwrite(i->readbuf, 1, i->buf_pos, i->png) != i->buf_pos) {
-            return -1;
-        }
-        i->chunk_pos += i->buf_pos;
-        i->checksum = update_crc(i->checksum, i->readbuf, i->buf_pos);
-    } while (i->d_stream.avail_out == 0);
-    err = deflateEnd(&i->d_stream);
-
-    i->checksum ^= 0xffffffffL;
-    ulong2bytes(i->checksum, longBuf);
-    if (fwrite(longBuf, sizeof(longBuf), 1, i->png) != 1) {
-        return -1;
-    }
-    fseek(i->png, -(long)(i->chunk_pos + 12), SEEK_CUR);
-    ulong2bytes(static_cast<uint32_t>(i->chunk_pos), longBuf);
-    if (fwrite(longBuf, sizeof(longBuf), 1, i->png) != 1) {
-        return -1;
-    }
-    fseek(i->png, static_cast<unsigned long>(i->chunk_pos + 8), SEEK_CUR);
-    i->position = 0;
-
-    return 0;
-}
-
-int PosOverIEND(png_internal_struct* i) {
-    png_internal_struct last;
-
-    while (0 != memcmp(i->chunk_type, image_end_label, sizeof(i->chunk_type))) {
-        last = *i;
-        GetNextChunk(i);
-    }
-    fseek(i->png, -8, SEEK_CUR);
-    *i = last;
-    return 0;
-}
-
-int PosOverIHDR(png_internal_struct* i) {
-    fseek(i->png, 8, SEEK_SET);
-    i->length = readLong(i->png);
-    fread_s(i->chunk_type, sizeof(i->chunk_type), 1, sizeof(i->chunk_type), i->png);
-    i->position = 1;
-    return 0;
-}
-
-int EndPNG(png_internal_struct* i) {
-    if (i->readbuf_initialized) {
-        delete i->readbuf;
-    }
-    return 0;
-}
-
-
-void setChunkType(png_internal_struct* i, const uint8_t* chunkType) {
-    memcpy(i->chunk_type, chunkType, sizeof(i->chunk_type));
-}
-
-bool checkChunkType(png_internal_struct* i, const uint8_t* chunkType) {
-    return 0 == memcmp(i->chunk_type, chunkType, sizeof(i->chunk_type));
 }

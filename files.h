@@ -48,12 +48,10 @@ enum class ColorMode {
 };
 
 /* Wants external format, writes internal to PNG */
-int PNGInitialization(
+int writeQuatPNGHead(
     const char* name,
-    ColorMode mode,
     FILE** png,
-    png_info_struct* png_info,
-    png_internal_struct* png_internal,
+    PNGFile& png_internal,
     int xstart,
     int ystart,
     long calctime,
@@ -67,16 +65,16 @@ int ReadParameters(
     size_t maxErrorLen,
     int* xstart,
     int* ystart,
-    png_internal_struct* internal,
+    PNGFile& internal,
     FractalPreferences& fractal);
 
 int UpdateQUATChunk(
-    png_internal_struct* internal,
+    PNGFile& internal,
     int actx,
     int acty);
 
 int PNGEnd(
-    png_internal_struct* png_internal,
+    PNGFile& png_internal,
     unsigned char* buf,
     int actx,
     int acty);

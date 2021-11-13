@@ -195,6 +195,7 @@ void RealPalette::reset() {
 }
 
 RealPalette::RealPalette(const json::value& jv) {
+    std::cerr << jv << std::endl;
     json::array colors = jv.as_object().at("colors").as_array();
     for (size_t i = 0; i < colors.size(); i++) {
         _cols[i] = col_struct(colors.at(i));
@@ -207,7 +208,7 @@ json::value RealPalette::toJSON() const {
     for (size_t i = 0; i < _nColors; i++) {
         colors.push_back(_cols[i].toJSON());
     }
-    return { "colors", colors };
+    return { { "colors", colors } };
 
 }
 
@@ -226,7 +227,7 @@ ColorScheme::ColorScheme(const json::value& jv) {
 }
 
 json::value ColorScheme::toJSON() const {
-    return { "formula", std::string(_data) };
+    return { { "formula", std::string(_data) } };
 }
 
 ColorScheme tag_invoke(const json::value_to_tag< ColorScheme >&, json::value const& jv) {
@@ -351,6 +352,7 @@ CutSpec tag_invoke(const json::value_to_tag< CutSpec >&, json::value const& jv) 
 
 
 FractalPreferences::FractalPreferences(const json::value& jv) {
+    std::cerr << jv << std::endl;
     _spec = json::value_to<FractalSpec>(jv.at("spec"));
     _view = json::value_to<FractalView>(jv.at("view"));
     _realpal = json::value_to<RealPalette>(jv.at("palette"));

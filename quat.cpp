@@ -325,7 +325,7 @@ int CalculateFractal(
     size_t maxErrorLen,
     char* pngfile,
     FILE** png,
-    struct png_internal_struct* png_internal,
+    PNGFile* png_internal,
     ZFlag zflag,
     int* xstart,
     int* ystart,
@@ -592,9 +592,8 @@ int CalculateFractal(
                 memset(line, 0, i + 1);
                 calc_time += time(NULL) - my_time;
                 if (png != NULL) {
-                    PNGEnd(png_internal, line, 0, j);
+                    PNGEnd(*png_internal, line, 0, j);
                     fclose(*png);
-                    EndPNG(png_internal);
                 }
                 *ystart = j;
                 *xstart = ii + 1;
@@ -614,8 +613,8 @@ int CalculateFractal(
             case ZFlag::NewImage:
                 if (!firstline) {
                     line[0] = '\0';       /* Set filter method */
-                    DoFiltering(png_internal, line);
-                    WritePNGLine(png_internal, line);
+                    png_internal->DoFiltering(line);
+                    png_internal->WritePNGLine(line);
                 }
                 break;
             case ZFlag::NewZBuffer:
@@ -627,14 +626,14 @@ int CalculateFractal(
                         }
                     }
                     line[0] = '\0';
-                    DoFiltering(png_internal, line);
-                    WritePNGLine(png_internal, line);
+                    png_internal->DoFiltering(line);
+                    png_internal->WritePNGLine(line);
                 }
                 break;
             case ZFlag::ImageFromZBuffer:
                 line[0] = '\0';      /* Set filter method */
-                DoFiltering(png_internal, line);
-                WritePNGLine(png_internal, line);
+                png_internal->DoFiltering(line);
+                png_internal->WritePNGLine(line);
             }
         }
         firstline = false;
@@ -642,9 +641,8 @@ int CalculateFractal(
 
     calc_time += time(NULL) - my_time;
     if (png != NULL) {
-        PNGEnd(png_internal, line, 0, j);
+        PNGEnd(*png_internal, line, 0, j);
         fclose(*png);
-        EndPNG(png_internal);
     }
 
     if (pngfile != NULL) {

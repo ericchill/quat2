@@ -8,3 +8,6 @@ int PixelvalueTrueMode(int x1, int x2, int rmax, int gmax, int bmax,
    RealPalette& realpal, unsigned char *line, float *CBuf, float *BBuf);
 int CalcWeightsum(RealPalette& realpal);
 int FindNearestColor(disppal_struct *disppal, unsigned char r, unsigned char g, unsigned char b);
+
+
+constexpr double GAMMA = 0.7;

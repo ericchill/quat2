@@ -76,14 +76,14 @@ int InitGraphics(
       1..ZBuffer from scratch, size view.xres*view.yres*AA^2
       2..image from ZBuffer, size img: xres*yres, buffer *AA^2
       for every case take into account that images can be stereo! */
-struct png_internal_struct;
+class PNGFile;
 
 int CalculateFractal(
     char* Error,
     size_t maxErrorLen,
     char* pngfile,
     FILE** png,
-    png_internal_struct* png_internal,
+    PNGFile* png_internal,
     ZFlag zflag,
     int* xstart, int* ystart,
     /* int xadd, int yadd, */

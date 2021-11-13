@@ -35,7 +35,6 @@ int DimAndGammaTrueColor(double RR, double GG, double BB, double* R, double* G, 
     double rgam, double ggam, double bgam, double bright);
 
 double weightsum;
-constexpr double GAMMA = 0.7;
 
 int GetTrueColor(RealPalette& rp,
     double color,

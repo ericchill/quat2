@@ -11,37 +11,37 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="about.cxx" />
+    <ClCompile Include="about.cpp" />
     <ClCompile Include="calculat.cpp" />
-    <ClCompile Include="ColorClipboard.cxx" />
-    <ClCompile Include="ColorEditor.cxx" />
-    <ClCompile Include="ColorPreview.cxx" />
+    <ClCompile Include="ColorClipboard.cpp" />
+    <ClCompile Include="ColorEditor.cpp" />
+    <ClCompile Include="ColorPreview.cpp" />
     <ClCompile Include="colors.cpp" />
     <ClCompile Include="common.cpp" />
-    <ClCompile Include="CReplacements.cxx" />
+    <ClCompile Include="CReplacements.cpp" />
     <ClCompile Include="files.cpp" />
-    <ClCompile Include="ImageWid.cxx" />
-    <ClCompile Include="IntersecEditor.cxx" />
+    <ClCompile Include="ImageWid.cpp" />
+    <ClCompile Include="IntersecEditor.cpp" />
     <ClCompile Include="iter.cpp" />
     <ClCompile Include="json.cpp" />
-    <ClCompile Include="JuliaPreview.cxx" />
-    <ClCompile Include="main.cxx" />
-    <ClCompile Include="MainWindow.cxx" />
-    <ClCompile Include="MandelPreview.cxx" />
-    <ClCompile Include="ObjectEditor.cxx" />
-    <ClCompile Include="OtherEditor.cxx" />
-    <ClCompile Include="ParameterEditor.cxx" />
+    <ClCompile Include="JuliaPreview.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="MainWindow.cpp" />
+    <ClCompile Include="MandelPreview.cpp" />
+    <ClCompile Include="ObjectEditor.cpp" />
+    <ClCompile Include="OtherEditor.cpp" />
+    <ClCompile Include="ParameterEditor.cpp" />
     <ClCompile Include="parameters.cpp" />
-    <ClCompile Include="PixWid.cxx" />
+    <ClCompile Include="PixWid.cpp" />
     <ClCompile Include="png.cpp" />
     <ClCompile Include="qmath.cpp" />
     <ClCompile Include="quat.cpp" />
     <ClCompile Include="quatfiles.cpp" />
-    <ClCompile Include="ScrollWid.cxx" />
+    <ClCompile Include="ScrollWid.cpp" />
     <ClCompile Include="ver.cpp" />
-    <ClCompile Include="ViewEditor.cxx" />
-    <ClCompile Include="ViewSelector.cxx" />
-    <ClCompile Include="WriteIni.cxx" />
+    <ClCompile Include="ViewEditor.cpp" />
+    <ClCompile Include="ViewSelector.cpp" />
+    <ClCompile Include="WriteIni.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="about.h" />
