@@ -31,12 +31,8 @@ public:
     ~MainWindow();
     bool shown() const;
 
-    /* These are the functions that are called from the C code during calculation */
-    static int FLTK_ReturnVideoInfo(struct vidinfo_struct* vidinfo);
-    static int FLTK_SetColors(struct disppal_struct*);
     static int FLTK_Initialize(int x, int y, char*);
     static int FLTK_Done();
-    static int FLTK_update_bitmap(long x1, long x2, long xres, int y, unsigned char* Buf, int which);
     static int FLTK_getline(unsigned char* line, int y, long xres, ZFlag whichbuf);
     static int FLTK_check_event();
     static int FLTK_Change_Name(const char* s);
@@ -68,18 +64,13 @@ public:
     void Parameters_SaveAs(const FractalPreferences&);
     void ZBuffer_Open();
     int ZBuffer_Close();
-    //	void ZBuffer_Save();
     void ZBuffer_SaveAs();
     void Help_Manual();
     FractalPreferences _fractal;
     bool auto_resize;
-    //	static const unsigned long TYPE;
-    //	unsigned long type() { return _type; }
 private:
     void MakeTitle();
     void DoImgOpen(const char* givenfile, ZFlag zflag);
-    void DoImgClose();
-    void DoZBufClose();
     int DoInitMem(int xres, int yres, string& Error, ZFlag zflag);
     void DoStartCalc(ZFlag zflag);
     static void Image_Open_cb(Fl_Widget*, void*);
@@ -99,7 +90,6 @@ private:
     static void Parameters_SaveAs_cb(Fl_Widget*, void*);
     static void ZBuffer_Open_cb(Fl_Widget*, void*);
     static void ZBuffer_Close_cb(Fl_Widget*, void*);
-    //	static void ZBuffer_Save_cb(Fl_Widget*, void*);
     static void ZBuffer_SaveAs_cb(Fl_Widget*, void*);
     static void Help_Manual_cb(Fl_Widget*, void*);
     int minsizeX, minsizeY;

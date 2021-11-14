@@ -39,8 +39,13 @@ public:
 		UpdateInputs();
 	}
 	void SetPal(const RealPalette &pal) {
-		_pal = pal; _idx = 0; Update(); UpdateInputs(); 
-		if (_pal._nColors>1) _button_del->activate();
+		_pal = pal;
+		_idx = 0;
+		Update();
+		UpdateInputs(); 
+		if (_pal._nColors > 1) {
+			_button_del->activate();
+		}
 	}
 	void GetPal(RealPalette &pal) const { pal = _pal; }
 	size_t current() const { return _idx; }

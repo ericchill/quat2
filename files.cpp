@@ -35,9 +35,8 @@
 #include "memory.h"
 #include "colors.h"
 
-static int ReadNext(z_stream* d, unsigned char* s);
+static int readNextCompressed(z_stream* d, unsigned char* s);
 static int ReadNextDouble(z_stream* s, double* d, char* Error, size_t maxErrorLen);
-/*static int ReadNextLong(z_stream *s, long *i, char *Error);*/
 static int ReadNextInt(z_stream* s, int* i, char* Error, size_t maxErrorLen);
 
 
@@ -54,7 +53,7 @@ char GetSlash() {
 
 void ConvertPath(char* Path) {
     for (size_t i = 0; i < strlen(Path); i++) {
-        if (Path[i] == '/' || Path[i] == '\\') {
+        if ('/' == Path[i] || '\\' == Path[i]) {
             Path[i] = slash;
         }
     }
@@ -62,7 +61,7 @@ void ConvertPath(char* Path) {
 
 void TruncateFileExt(char* filename) {
     char* s = strrchr(filename, slash);
-    if (s == NULL) {
+    if (nullptr == s) {
         filename[0] = '\0';
     } else {
         *(++s) = '\0';
@@ -112,7 +111,6 @@ int writeQuatPNGHead(
     int xstart, int ystart,
     long calctime,
     const FractalPreferences& fractal,
-    disppal_struct* pal,
     ZFlag zflag)
     /* rewrites file "name" */
 {
@@ -131,7 +129,7 @@ int writeQuatPNGHead(
     ConvertPath(pngname);
 
     *png = fopen(pngname, "w+b");
-    if (*png == NULL) {
+    if (nullptr == *png) {
         return -1;
     }
 
@@ -140,7 +138,7 @@ int writeQuatPNGHead(
     if (view.isStereo()) {
         xPixelCount *= 2;
     }
-    if (zflag == ZFlag::NewZBuffer) {
+    if (ZFlag::NewZBuffer == zflag) {
         xPixelCount *= view._antialiasing;
         yPixelCount *= view._antialiasing;
     }
@@ -213,17 +211,16 @@ int writeQuatPNGHead(
     if (!png_internal.WriteChunk(uBuf, c_stream.total_out + i)) {
         return -1;
     }
-
     return 0;
 }
 
-int ReadAll(z_stream* d, unsigned char* s, size_t maxBytes) {
+int readAllCompressed(z_stream* d, unsigned char* s, size_t maxBytes) {
     d->avail_out = static_cast<uInt>(maxBytes);
     d->next_out = s;
     return inflate(d, Z_FINISH);
 }
 
-int ReadNext(z_stream* d, unsigned char* s) {
+int readNextCompressed(z_stream* d, unsigned char* s) {
     int err = Z_OK;
     int i = 0;
 
@@ -239,9 +236,9 @@ int ReadNextDouble(z_stream* s, double* d, char* Error, size_t maxErrorLen) {
     int err;
     char string[100];
 
-    err = ReadNext(s, (unsigned char*)string);
-    if (err == Z_DATA_ERROR || err == Z_STREAM_ERROR || err == Z_MEM_ERROR) {
-        if (err == Z_MEM_ERROR) {
+    err = readNextCompressed(s, (unsigned char*)string);
+    if (Z_DATA_ERROR == err || Z_STREAM_ERROR == err || Z_MEM_ERROR == err) {
+        if (Z_MEM_ERROR == err) {
             sprintf_s(Error, maxErrorLen, "Not enough memory for zlib inflation.\n");
         } else {
             sprintf_s(Error, maxErrorLen, "Corrupted PNG file.\n");
@@ -257,8 +254,8 @@ int ReadNextInt(z_stream* s, int* i, char* Error, size_t maxErrorLen) {
     int err;
     char string[100];
 
-    err = ReadNext(s, (unsigned char*)string);
-    if (err == Z_DATA_ERROR || err == Z_STREAM_ERROR || err == Z_MEM_ERROR) {
+    err = readNextCompressed(s, (unsigned char*)string);
+    if (Z_DATA_ERROR == err || Z_STREAM_ERROR == err || Z_MEM_ERROR == err) {
         sprintf_s(Error, maxErrorLen, "Corrupted PNG file or no memory.\n");
         return -1;
     }
@@ -266,23 +263,6 @@ int ReadNextInt(z_stream* s, int* i, char* Error, size_t maxErrorLen) {
 
     return 0;
 }
-
-/*
-int ReadNextLong(z_stream *s, long *i, char *Error)
-{
-    int err;
-    char string[100];
-
-    err = ReadNext(s, (unsigned char*)string);
-    if (err == Z_DATA_ERROR || err == Z_STREAM_ERROR || err == Z_MEM_ERROR) {
-    sprintf(Error, "Corrupted PNG file or no memory.\n");
-    return -1;
-    }
-    *i = atol(string);
-
-   return 0;
-}
-*/
 
 /* RC :  -3 No quat chunk; -4 No memory; -5 No Quat-PNG; -128 file ver higher
    than progver */
@@ -293,13 +273,11 @@ int ReadParameters(
     int* ystart,
     PNGFile& internal,
     FractalPreferences& fractal) {
-\
     char s[40];
     z_stream d;
     int err;
     float ver, thisver;
     FractalPreferences maybeFractal;
-    unsigned char jsonBuf[10240];
 
     /* search until quAt chunk found */
     while (!(internal.checkChunkType(quat_chunk_label) || internal.checkChunkType(image_end_label))) {
@@ -322,8 +300,12 @@ int ReadParameters(
     /* Determine version of QUAT which wrote file */
     thisver = static_cast<float>(atof(PROGVERSION));
     ver = static_cast<float>(atof((char*)&Buf[5]));
-    if (ver == 0) {
+    if (0 == ver) {
         sprintf_s(Error, maxErrorLen, "No QUAT signature in QUAT chunk.\n");
+        return -5;
+    }
+    if (ver < 2.0f) {
+        sprintf_s(Error, maxErrorLen, "PNG is from an unsupported older version of Quat.\n");
         return -5;
     }
     *xstart = ((Buf[strlen(s) + 1] << 8) & 0xff00) | Buf[strlen(s) + 2];
@@ -331,25 +313,22 @@ int ReadParameters(
     d.zalloc = nullptr;
     d.zfree = nullptr;
     err = inflateInit(&d);
-    if (ver >= 0.92) {
-        calc_time = ((Buf[strlen(s) + 5] << 24) & 0xff000000L)
-            | ((Buf[strlen(s) + 6] << 16) & 0xff0000L)
-            | ((Buf[strlen(s) + 7] << 8) & 0xff00L)
-            | Buf[strlen(s) + 8];
-        d.next_in = &(Buf[strlen(s) + 9]);
-        d.avail_in = static_cast<uInt>(internal.length() - strlen(s) - 9);
-    } else {
-        d.next_in = &(Buf[strlen(s) + 5]);
-        d.avail_in = static_cast<uInt>(internal.length() - strlen(s) - 5);
-    }
 
-    err = ReadAll(&d, jsonBuf, sizeof(jsonBuf));
-    std::string jsonStr((char*)jsonBuf);
+    calc_time = ((Buf[strlen(s) + 5] << 24) & 0xff000000L)
+        | ((Buf[strlen(s) + 6] << 16) & 0xff0000L)
+        | ((Buf[strlen(s) + 7] << 8) & 0xff00L)
+        | Buf[strlen(s) + 8];
+    d.next_in = &(Buf[strlen(s) + 9]);
+    d.avail_in = static_cast<uInt>(internal.length() - strlen(s) - 9);
+
+    LexicallyScopedPtr<unsigned char> jsonBuf = new unsigned char[10240];
+    readAllCompressed(&d, jsonBuf, sizeof(jsonBuf));
+    std::string jsonStr((char*)(unsigned char*)jsonBuf);
     json::stream_parser parser;
     parser.write(jsonStr);
     json::value parsed = parser.release();
     fractal = json::value_to<FractalPreferences>(parsed);
-    err = inflateEnd(&d);
+    inflateEnd(&d);
 
     if (FormatInternToExtern(fractal.fractal(), fractal.view()) != 0) {
         sprintf_s(Error, maxErrorLen, "Strange: Error in view struct!");
@@ -391,7 +370,7 @@ int UpdateQUATChunk(PNGFile& internal, int actx, int acty) {
     Buf[strlen(s) + 8] = (unsigned char)(calc_time & 0xffL);
     internal.flush();
     internal.position(QuatPos);
-    if (!internal.WriteChunk(Buf, -1)) { // length is left over from last ReadChunkData
+    if (!internal.WriteChunk(Buf)) { // length is left over from last ReadChunkData
         return -1;
     }
     internal.flush();
@@ -427,15 +406,15 @@ int GetNextName(char* nowname, char* namewop, size_t maxNameSize) {
     ConvertPath(nowname);
     /* Delete everything after first point */
     pathendp = strrchr(nowname, slash);
-    if (pathendp != NULL) {
+    if (pathendp != nullptr) {
         pathlen = pathendp - nowname + 1;
     } else {
         pathlen = 0;
         pathendp = nowname - 1;
     }
     strncpy_s(onlyname, sizeof(onlyname), pathendp + 1, 256);
-    if ((f = fopen(nowname, "r")) == NULL) {
-        if (namewop != NULL) {
+    if ((f = fopen(nowname, "r")) == nullptr) {
+        if (namewop != nullptr) {
             strncpy_s(namewop, maxNameSize, onlyname, 80);
         }
         return 0;
@@ -443,7 +422,7 @@ int GetNextName(char* nowname, char* namewop, size_t maxNameSize) {
     fclose(f);
     onlyextp = strrchr(onlyname, '.');
     strcpy_s(onlyext, sizeof(onlyext), ".png");
-    if (onlyextp != NULL) {
+    if (onlyextp != nullptr) {
         strcpy_s(onlyext, sizeof(onlyext), onlyextp);
         onlyextp[0] = '\0';
     } else {
@@ -454,10 +433,10 @@ int GetNextName(char* nowname, char* namewop, size_t maxNameSize) {
     }
     onlyname[strlen(onlyname) - 2] = '\0';
 
-    strncpy_s(name, sizeof(name), nowname, pathlen); 
+    strncpy_s(name, sizeof(name), nowname, pathlen);
     name[pathlen] = '\0';
     sprintf_s(name, sizeof(name), "%s%s%02i%s", name, onlyname, n, onlyext);
-    for (n = 1; n <= 99 && (f = fopen(name, "r")) != NULL; n++) {
+    for (n = 1; n <= 99 && (f = fopen(name, "r")) != nullptr; n++) {
         fclose(f);
         strncpy_s(name, sizeof(name), nowname, pathlen);
         name[pathlen] = '\0';

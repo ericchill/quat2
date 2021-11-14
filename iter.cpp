@@ -674,10 +674,10 @@ int FractalView::calcbase(base_struct* base, base_struct* sbase, WhichEye viewTy
     vec3 y;
 
     int e = DoCalcbase(base, sbase, false, y);
-    commonbase = *base;
     if (e != 0) {
         return e;
     }
+    commonbase = *base;
     if (viewType != WhichEye::Monocular) {
         FractalView v2 = *this;
         v2._s += whichEyeToSign(viewType) * _interocular / 2 * base->_x;
@@ -704,7 +704,7 @@ double calc_struct::obj_distance() {
     int z, z2;
     iter_struct is;
 
-    double refinement = 20.0; // 15 + 5 * v._zres / 480.0;
+    float refinement = 20.0; // 15 + 5 * v._zres / 480.0;
 
     assert(GlobalOrbit != NULL);
     is.c = f._c;
@@ -747,7 +747,7 @@ double calc_struct::obj_distance() {
         if (iter != 0) {
             f._lastiter = iter;
         }
-        return floorf((z - z2 / refinement) * 1000.0 + 0.5) / 1000.0;
+        return floorf((z - z2 / refinement) * 1000.0f + 0.5f) / 1000.0f;
     } catch (CUDAException& ex) {
         fprintf(stderr, "In obj_distance: %s\n", ex.what());
         assert(false);
@@ -813,7 +813,7 @@ double FractalView::brightness(const vec3& p, const vec3& n, const vec3& z) cons
       1..calc ZBuffer from scratch;
       2..calc image from ZBuffer
 */
-double calc_struct::brightpoint(long x, int y, double* LBuf) {
+float calc_struct::brightpoint(long x, int y, double* LBuf) {
     long xa, ya;
     Quat xp;
     vec3 n/*,  xp2*/;
@@ -875,7 +875,7 @@ double calc_struct::brightpoint(long x, int y, double* LBuf) {
             }
         }
     }
-    return BBuf;
+    return static_cast<float>(BBuf);
 }
 
 
@@ -966,7 +966,7 @@ int calc_struct::calcline(long x1, long x2, int y,
 extern struct progtype prog;
 
 /* finds color for the point c->xq */
-double calc_struct::colorizepoint() {
+float calc_struct::colorizepoint() {
     /* Handles for variables */
     static unsigned char xh = 255, yh = 255, zh = 255, wh = 255;
     static unsigned char xbh = 255, ybh = 255, zbh = 255, wbh = 255;
@@ -1005,5 +1005,5 @@ double calc_struct::colorizepoint() {
     if (CBuf < 0) {
         CBuf = 1 + CBuf;
     }
-    return CBuf;
+    return static_cast<float>(CBuf);
 }

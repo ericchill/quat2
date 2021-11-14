@@ -173,71 +173,27 @@ int InitGraphics(
     size_t maxErrorLen,
     FractalPreferences& fractal,
     bool ready,
-    vidinfo_struct* vidinfo,
-    disppal_struct* disppal,
     int* xadd, int* yadd,
     bool useZBuf) {
     /* ready ... 0: not ready */
-    /* zbufflag ... 0: no zbuffer (reason: AA) */
-    int i, j;
+    /* useZBuf ... 0: no zbuffer (reason: AA) */
 
-    /* Do graphics initialization & return mode info (in vidinfo) in different versions */
-    *yadd = 0; *xadd = 0;
-    i = fractal.view()._xres;
+    *yadd = 0; 
+    *xadd = 0;
+    int i = fractal.view()._xres;
     if (fractal.view().isStereo()) {
         i *= 2;
     }
-    j = fractal.view()._yres;
+    int j = fractal.view()._yres;
     if (useZBuf) {
         i *= fractal.view()._antialiasing;
         j *= fractal.view()._antialiasing;
     }
 
-    if (Initialize != NULL && Initialize(i, j, Error) != 0) {
+    if (Initialize != nullptr && Initialize(i, j, Error) != 0) {
         return -1;
     }
-    if (ReturnVideoInfo != NULL) {
-        ReturnVideoInfo(vidinfo);
-    }
-    if (vidinfo->maxcol != -1) {
-        int r = 0;
-        disppal->btoc = 1;
-        if (!useZBuf) {
-            r = CreateDispPal(disppal,
-                fractal.realPalette(),
-                vidinfo->maxcol,
-                fractal.view()._phongmax,
-                vidinfo->rdepth,
-                vidinfo->gdepth,
-                vidinfo->bdepth);
-        } else {
-            RealPalette rp;
-            rp._nColors = 1;
-            rp._cols[0].weight = 1;
-            for (int i = 0; i < 3; i++) {
-                rp._cols[0].col1[i] = 1;
-                rp._cols[0].col1[i] = 1;
-            }
-            r = CreateDispPal(disppal,
-                rp,
-                vidinfo->maxcol,
-                fractal.view()._phongmax,
-                vidinfo->rdepth,
-                vidinfo->gdepth,
-                vidinfo->bdepth);
-        }
-        if (r == -1) {
-            sprintf_s(Error, maxErrorLen,
-                "Too many colours for this display (%i).\nUse text only version.\n",
-                vidinfo->maxcol);
-            return -1;
-        }
-        if (SetColors != NULL) {
-            SetColors(disppal);
-        }
-    } else {
-        CalcWeightsum(fractal.realPalette());
-    }
+    fractal.realPalette().computeWeightSum();
 
     return 0;
 }
@@ -245,7 +201,6 @@ int InitGraphics(
 void AllocBufs(
     FractalView& v,
     ZFlag zflag, 
-    ColorMode colorMode,
     LexicallyScopedPtr<float>& CBuf,
     LexicallyScopedPtr<float>& BBuf,
     LexicallyScopedPtr<double>& LBufR,
@@ -262,9 +217,6 @@ void AllocBufs(
     case ZFlag::NewImage:   /* create an image without ZBuffer */
         LBufR = new double[LBufSize]();
         line = new unsigned char[3 * v._xres * st + 1 + 10]();
-        if (colorMode == ColorMode::Indexed) {
-            line2 = new unsigned char[v._xres * st + 10]();
-        }
         CBuf = new float[v._xres * st + 10]();
         BBuf = new float[v._xres * st + 10]();
         if (st == 2) {
@@ -284,9 +236,6 @@ void AllocBufs(
     case ZFlag::ImageFromZBuffer:   /* create an image using a ZBuffer */
         LBufR = new double[LBufSize + 10]();
         line = new unsigned char[3 * v._xres * st + 1 + 10]();
-        if (colorMode == ColorMode::Indexed) {
-            line2 = new unsigned char[3 * v._xres * st + 1 + 10]();
-        }
         CBuf = new float[v._xres * st + 10]();
         BBuf = new float[v._xres * st + 10]();
         line3 = new unsigned char[3 * v._xres * v._antialiasing * st + 1 + 10]();
@@ -335,8 +284,6 @@ int CalculateFractal(
     base_struct* lbase,
     base_struct* slbase,
     FractalPreferences& fractal,
-    vidinfo_struct* vidinfo,
-    disppal_struct* disppal,
     LinePutter& lineDst)
     /* pngfile: string of filename, without path (only for title bar) */
     /* png: _opened_ png file */
@@ -351,8 +298,6 @@ int CalculateFractal(
           2..image from ZBuffer, size img: xres*yres, buffer *AA^2
           for every case take into account that images can be stereo! */
 {
-    //long i;
-    long xres_st, xres_aa, xres_st_aa;
     LexicallyScopedPtr<double> LBufR;
     LexicallyScopedPtr<double> LBufL;
     LexicallyScopedPtr<float> CBuf;
@@ -361,19 +306,15 @@ int CalculateFractal(
     LexicallyScopedPtr<unsigned char> line2;
     LexicallyScopedPtr<unsigned char> line3;
     calc_struct cr, cl;
-    time_t my_time;
     char MSG[300];
     long ii, kk;
-    FractalSpec frac;
-    FractalView view;
-    int rrv = 0;
 
-    frac = fractal.fractal(); 
-    view = fractal.view();
+    FractalSpec frac = fractal.fractal(); 
+    FractalView view = fractal.view();
 
-    xres_st = view._xres;
-    xres_aa = view._xres * view._antialiasing;
-    xres_st_aa = xres_aa;
+    long xres_st = view._xres;
+    long xres_aa = view._xres * view._antialiasing;
+    long xres_st_aa = xres_aa;
     if (view.isStereo()) {
         xres_st *= 2;
         xres_st_aa *= 2;
@@ -389,12 +330,9 @@ int CalculateFractal(
     }
     GlobalOrbit = new Quat[frac._maxiter + 2]();
     /* "+2", because orbit[0] is special flag for orbite,j,k,l */
-    AllocBufs(
-        view, zflag, (vidinfo->maxcol != -1) ? ColorMode::Indexed : ColorMode::RGB,
-        CBuf, BBuf, LBufR, LBufL,
-        line, line2, line3);
+    AllocBufs(view, zflag, CBuf, BBuf, LBufR, LBufL, line, line2, line3);
 
-    my_time = time(NULL);
+    time_t my_time = time(NULL);
 
     switch (frac._formula) {
     case 0:
@@ -511,26 +449,17 @@ int CalculateFractal(
 
             /* image to calculate */
             if (shouldCalculateImage(zflag) && !firstline) {
-                if (vidinfo->maxcol != -1) {
-                    PixelvaluePalMode(ii, imax, disppal->_nColors - 1,
-                        disppal->brightnum - 1, line2, CBuf, BBuf);
-                }
-                PixelvalueTrueMode(ii, imax, 255, 255, 255,
-                    fractal.realPalette(), &(line[1]), CBuf, BBuf);
+                fractal.realPalette().pixelValue(ii, imax, 255, 255, 255,  &line[1], CBuf, BBuf);
             }
             if (view.isStereo()) {
                 cl.calcline(ii, imax, j, LBufL, &BBuf[view._xres], &CBuf[view._xres], zflag);   /* left eye image */
                /* image to calculate */
                 if (shouldCalculateImage(zflag) && !firstline) {
-                    if (vidinfo->maxcol != -1) {
-                        PixelvaluePalMode(ii, imax, disppal->_nColors - 1,
-                            disppal->brightnum - 1,
-                            &line2[view._xres],
-                            &CBuf[view._xres], &BBuf[view._xres]);
-                    }
-                    PixelvalueTrueMode(ii, imax, 255, 255, 255,
-                        fractal.realPalette(), &(line[3 * view._xres + 1]),
-                        &CBuf[view._xres], &BBuf[view._xres]);
+                    fractal.realPalette().pixelValue(
+                        ii, imax, 255, 255, 255,
+                        &line[3 * view._xres + 1],
+                        &CBuf[view._xres],
+                        &BBuf[view._xres]);
                 }
             }
             /* Display and Transfer */
@@ -543,12 +472,6 @@ int CalculateFractal(
                         j * view._antialiasing + kk - 1,
                         line + 1,
                         true);
-                    update_bitmap(ii * view._antialiasing,
-                        (imax + 1) * view._antialiasing - 1,
-                        xres_st_aa,
-                        j * view._antialiasing + kk - 1,
-                        line + 1,
-                        view._zres);
                 }
                 if (view.isStereo()) {
                     for (kk = 1; kk < view._antialiasing + 1; kk++) {
@@ -559,31 +482,18 @@ int CalculateFractal(
                             j * view._antialiasing + kk - 1,
                             line + 1,
                             true);
-                        update_bitmap(ii * view._antialiasing + xres_aa,
-                            (imax + 1) * view._antialiasing - 1 + xres_aa,
-                            xres_st_aa,
-                            j * view._antialiasing + kk - 1,
-                            line + 1,
-                            view._zres);
                     }
                 }
             } else if (!firstline) {   /* the image */
                 lineDst.putLine(ii, imax, xres_st, j, line + 1, false);
                 if (view.isStereo()) {
-                    lineDst.putLine(ii + view._xres, imax + view._xres, xres_st,
-                        j, line + 1, false);
-                }
-                update_bitmap(ii, imax, xres_st, j, line + 1, 0);
-                if (view.isStereo()) {
-                    update_bitmap(ii + view._xres, imax + view._xres, xres_st,
-                        j, &(line[1]),
-                        0);
+                    lineDst.putLine(ii + view._xres, imax + view._xres, xres_st, j, line + 1, false);
                 }
             }
             if ((imax == view._xres - 1) && !firstline) {
                 eol(j + 1);
             }
-            rrv = check_event();
+            int rrv = check_event();
             if (rrv != 0) {
                 int i = view._xres * 3;
                 if (view.isStereo()) {
@@ -601,13 +511,10 @@ int CalculateFractal(
                     *xstart = 0; (*ystart)++;
                 }
                 Done();
-                /* return code from check event.
-                   (win destroyed / calc stopped) */
                 return rrv;
             }
         }
         *xstart = 0;
-        /* Write to PNG file */
         if (NULL != png) {
             switch (zflag) {
             case ZFlag::NewImage:
@@ -669,8 +576,6 @@ int CreateImage(
        Wants external format of frac & view */
 {
     base_struct rbase, srbase, lbase, slbase, cbase;
-    vidinfo_struct vidinfo;
-    disppal_struct disppal;
     int xadd, yadd;
     char ErrorMSG[256];
 
@@ -697,11 +602,7 @@ int CreateImage(
         }
     }
 
-    /* MSWIN_Initialize will recognize if it is already initialized.
-       Needing vidinfo, disppal...
-    */
-    if (InitGraphics(Error, maxErrorLen, fractal, false, &vidinfo, &disppal,
-        &xadd, &yadd, zflag == ZFlag::NewZBuffer) != 0) {
+    if (InitGraphics(Error, maxErrorLen, fractal, false, &xadd, &yadd, zflag == ZFlag::NewZBuffer) != 0) {
         return -1;
     }
 
@@ -716,7 +617,6 @@ int CreateImage(
         pixelsPerCheck,
         &rbase, &srbase, &lbase, &slbase, 
         fractal,
-        &vidinfo, &disppal,
         lineDst);
 }
 
@@ -725,8 +625,6 @@ int CreateZBuf(char* Error, size_t maxErrorLen, int* xstart, int* ystart, Fracta
 {
     base_struct rbase, srbase, lbase, slbase, cbase;
     RealPalette realpal;
-    vidinfo_struct vidinfo;
-    disppal_struct disppal;
     int xadd, yadd;
     int i;
 
@@ -756,17 +654,14 @@ int CreateZBuf(char* Error, size_t maxErrorLen, int* xstart, int* ystart, Fracta
             return -1;
         }
     }
-    /* MSWIN_Initialize will recognize if it is already initialized.
-       Needing vidinfo, disppal...
-    */
-    if (InitGraphics(Error, maxErrorLen, fractal, false, &vidinfo, &disppal,
-        &xadd, &yadd, true) != 0) {
+    
+    if (InitGraphics(Error, maxErrorLen, fractal, false, &xadd, &yadd, true) != 0) {
         return -1;
     }
 
     i = CalculateFractal(Error, maxErrorLen, NULL, NULL, NULL,
         ZFlag::NewZBuffer, xstart, ystart, pixelsPerCheck, &rbase, &srbase, &lbase,
-        &slbase, fractal, &vidinfo, &disppal, lineDst);
+        &slbase, fractal, lineDst);
 
     return i;
 }

@@ -32,7 +32,7 @@ int ReadParametersAndImage(
     char* Error,
     size_t maxErrorLen,
     const char* pngfile,
-    unsigned char* ready,
+    bool* ready,
     int* xstart,
     int* ystart,
     FractalPreferences& fractal,

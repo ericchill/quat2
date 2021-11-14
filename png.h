@@ -87,7 +87,7 @@ public:
     /* Buf up is the raw date of the line above. May be NULL */
     int DoUnFiltering(unsigned char* Buf, unsigned char* Buf_up);
     int DoFiltering(unsigned char* Buf);
-    bool WriteChunk(unsigned char* Buf, int size = -1);
+    bool WriteChunk(unsigned char* Buf, size_t size = (size_t)-1);
     int WritePNGLine(unsigned char* Buf);
 
 

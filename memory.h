@@ -43,7 +43,15 @@ public:
         return _ptr;
     }
     operator T* () { return _ptr; }
-
+    T* operator->() {
+        return &*_ptr;
+    }
+    const T* ptr() const {
+        return _mem;
+    }
+    T* ptr() {
+        return _mem;
+    }
 };
 
 template<typename T>

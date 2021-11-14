@@ -147,9 +147,9 @@ PNGFile::~PNGFile() {
 }
 
 int PNGFile::GetNextChunk() {
-    if (_position == 1) {
+    if (1 == _position) {
         fseek(_fd, (long)_length + 4, SEEK_CUR);
-    } else if (_position == 2) {
+    } else if (2 == _position) {
         fseek(_fd, 4L, SEEK_CUR);
     }
     _position = 1;
@@ -185,12 +185,11 @@ int PNGFile::do_inflate() {
         _zlib_initialized = true;
         _d_stream.zalloc = nullptr;
         _d_stream.zfree = nullptr;
-
         err = inflateInit(&_d_stream);
     }
     err = inflate(&_d_stream, Z_NO_FLUSH);
 
-    if (err == Z_STREAM_END) {
+    if (Z_STREAM_END == err) {
         err = inflateEnd(&_d_stream);
         return 10;
     }
@@ -306,7 +305,7 @@ int PNGFile::DoUnFiltering(uint8_t* Buf, uint8_t* Buf_up) {
         Buf[0] = 0;
         break;
     case 2:              /* Up */
-        if (Buf_up == NULL) {
+        if (nullptr == Buf_up) {
             Buf[0] = 0;
             return 0; /* according to png spec. it is assumed that */
                        /* Buf_up is zero everywhere */
@@ -358,10 +357,10 @@ int PNGFile::DoUnFiltering(uint8_t* Buf, uint8_t* Buf_up) {
 }
 
 int PNGFile::DoFiltering(unsigned char* Buf) {
-    if (Buf[0] == 0) {
+    if (0 == Buf[0]) {
         return 0; /* No filter */
     }
-    if (Buf[0] == 1) {
+    if (1 == Buf[0]) {
         /* Sub       */
         int bytesPerPixel = 3 * (int)ceil((double)_info.bit_depth / 8);
         for (int j = (int)_info.width * bytesPerPixel; j >= bytesPerPixel + 1; j--) {
@@ -412,11 +411,11 @@ int PNGFile::InitWritePNG(FILE* png) {
     return 0;
 }
 
-bool PNGFile::WriteChunk(unsigned char* buf, int size) {
+bool PNGFile::WriteChunk(unsigned char* buf, size_t size) {
     uint32_t crc_v;
     uint8_t longBuf[sizeof(uint32_t)];
 
-    if (size == -1) {
+    if ((size_t)-1 == size) {
         _length = size;
     }
 

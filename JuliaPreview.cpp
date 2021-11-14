@@ -65,15 +65,11 @@ void JuliaPreview::CalcImage3D()
 	int xs = 0, ys = 0;
 	char Error[1024];
 
-	ReturnVideoInfo = MainWindow::FLTK_ReturnVideoInfo;
-	SetColors = MainWindow::FLTK_SetColors;
 	Initialize = DUMMY_Initialize;
 	Done = DUMMY_Done;
-	update_bitmap = DUMMY_update_bitmap;
 	QU_getline = DUMMY_getline;
 	check_event = MainWindow::FLTK_check_event;
 	Change_Name = DUMMY_Change_Name;
-	::Debug = MainWindow::FLTK_Debug;
 	_calcFractal.reset();
 	for (int j = 0; j < 4; ++j) {
 		_calcFractal.fractal()._p[j] = _fractal.fractal()._p[j];

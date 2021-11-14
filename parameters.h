@@ -5,6 +5,8 @@
 #include "qmath.h"
 #include "json.h"
 
+#include "colors.h"
+
 
 /*
 0..image from scratch, size view.xres* view.yres
@@ -189,38 +191,6 @@ FractalView tag_invoke(const json::value_to_tag< FractalView >&, json::value con
 
 
 
-struct col_struct {
-    double weight;   /* Weight in a palette from 0.0 to 1.0 */
-                     /* 0 ... single color */
-                     /* >0 ... smoothly shaded to next color in */
-                     /* palette, the higher weight, the slower */
-    double col1[3];  /* Red, green, blue from 0.0 to 1.0 */
-    double col2[3];  /* dto. */
-
-    col_struct() : weight(0), col1(), col2() {}
-    col_struct(const json::value jv);
-    json::value toJSON() const;
-};
-
-
-class RealPalette : public JSONSerializable {
-public:
-    RealPalette() { reset(); }
-    RealPalette(const RealPalette& r);
-    void reset();
-    void print();
-
-    RealPalette(const json::value& jv);
-    virtual json::value toJSON() const;
-
-    static constexpr size_t maxColors = 30;
-
-    struct col_struct _cols[maxColors];
-    size_t _nColors;
-};
-
-RealPalette tag_invoke(const json::value_to_tag< RealPalette >&, json::value const& jv);
-
 
 class ColorScheme : public JSONSerializable {
     char _data[256];
@@ -350,25 +320,6 @@ public:
 FractalPreferences tag_invoke(const json::value_to_tag< FractalPreferences >&, json::value const& jv);
 
 
-
-struct rgbcol_struct {
-    short int r, g, b;
-};
-
-struct disppal_struct {
-    struct rgbcol_struct cols[256];
-    int _nColors, brightnum;  /* maxcol = _nColors*brightnum */
-    int maxcol;
-    double btoc;    /* "brights":colors */
-    int rdepth, gdepth, bdepth;   /* Used by FindNearestColor. Should be filled if this is used. */
-};
-
-struct vidinfo_struct {
-    int maxcol;
-    int rdepth, gdepth, bdepth;
-    double rgam, ggam, bgam;
-};
-
 struct iter_struct;
 
 struct calc_struct {
@@ -403,6 +354,6 @@ struct calc_struct {
         double* LBuf, float* BBuf, float* CBuf,
         ZFlag zflag);
     double obj_distance();
-    double colorizepoint();
-    double brightpoint(long x, int y, double* LBuf);
+    float colorizepoint();
+    float brightpoint(long x, int y, double* LBuf);
 };

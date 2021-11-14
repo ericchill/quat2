@@ -67,12 +67,6 @@ int CopyIDAT(bool copy,
         }
 
         lineDst.putLine(0L, i->width() - 1, i->width(), j, &lineBuf[1], zflag != ZFlag::NewImage);
-        /* display line */
-        if (zflag == ZFlag::NewImage) {
-            update_bitmap(0L, i->width() - 1, i->width(), j, &lineBuf[1], 0);
-        } else if (zflag == ZFlag::NewZBuffer) {
-            update_bitmap(0L, i->width() - 1, i->width(), j, &lineBuf[1], zres);
-        }
         check_event();
         /*eol(j+1);*/
     }
@@ -98,8 +92,6 @@ int CalculatePNG(
 {
     base_struct rbase, srbase, lbase, slbase, cbase;
     FractalPreferences fractal;
-    vidinfo_struct vidinfo;
-    disppal_struct disppal;
     int xadd, yadd, xstart, ystart;
     FILE* png2;
     png_info_struct png_info1;
@@ -141,7 +133,7 @@ int CalculatePNG(
             return -1;
         }
 
-        if (zflag == ZFlag::ImageFromZBuffer && strlen(ini) != 0) {
+        if (ZFlag::ImageFromZBuffer == zflag && strlen(ini) != 0) {
             i = ParseINI(ini, Error, maxErrorLen, fractal);
             if (0 != i) {
                 return -1;
@@ -170,7 +162,7 @@ int CalculatePNG(
             }
         }
 
-        if (InitGraphics(Error, maxErrorLen, fractal, ready, &vidinfo, &disppal,
+        if (InitGraphics(Error, maxErrorLen, fractal, ready,
             &xadd, &yadd, zflag != ZFlag::NewImage) != 0) {
             return -1;
         }
@@ -180,9 +172,8 @@ int CalculatePNG(
             ys *= fractal.view()._antialiasing;
         }
 
-        if (zflag == ZFlag::ImageFromZBuffer) {
-            if (writeQuatPNGHead(pngfile2, &png2, png_internal2,
-                0, 0, 0L, fractal, &disppal, zflag)) {
+        if (ZFlag::ImageFromZBuffer == zflag) {
+            if (writeQuatPNGHead(pngfile2, &png2, png_internal2, 0, 0, 0L, fractal, zflag)) {
                 sprintf_s(Error, maxErrorLen, "Could not create file '%s'\n", pngfile2);
                 return -1;
             }
@@ -192,15 +183,14 @@ int CalculatePNG(
         }
 
         if (!ready) {
-            if (writeQuatPNGHead(pngfile2, &png2, png_internal2,
-                0, 0, 0L, fractal, &disppal, zflag)) {
+            if (writeQuatPNGHead(pngfile2, &png2, png_internal2, 0, 0, 0L, fractal, zflag)) {
                 sprintf_s(Error, maxErrorLen, "Could not create file '%s'\n", pngfile2);
                 return -1;
             }
             CopyIDAT(true, &png_internal1, &png_internal2, ys, zflag, fractal.view()._zres, lineDst);
             sprintf_s(Error, maxErrorLen, "\nCreated new file '%s'\n", pngfile2);
         } else {
-            if (zflag == ZFlag::NewImage) {
+            if (ZFlag::NewImage == zflag) {
                 CopyIDAT(false, &png_internal1, &png_internal2, ys, zflag, fractal.view()._zres, lineDst);
             } else {
                 CopyIDAT(false, &png_internal1, &png_internal2, ys, ZFlag::NewZBuffer, fractal.view()._zres, lineDst);
@@ -211,15 +201,12 @@ int CalculatePNG(
         }
 
         i = 0;
-        if (!ready || zflag == ZFlag::ImageFromZBuffer) {
-            if (zflag == ZFlag::ImageFromZBuffer && vidinfo.maxcol != -1) {
-                InitGraphics(Error, maxErrorLen, fractal, ready, &vidinfo, &disppal, &xadd, &yadd, false);
-            }
+        if (!ready || ZFlag::ImageFromZBuffer == zflag) {
             i = CalculateFractal(Error, maxErrorLen, pngfile2, &png2,
                 &png_internal2,
                 zflag, &xstart, &ystart, /* noev */16,
-                &rbase, &srbase, &lbase, &slbase, fractal, &vidinfo,
-                &disppal, lineDst);
+                &rbase, &srbase, &lbase, &slbase, fractal,
+                lineDst);
         }
     } catch (PNGException&) {
         sprintf_s(Error, maxErrorLen, "File '%s' is not a valid png-file.\n", pngfile1);
@@ -235,21 +222,17 @@ int ParseINI(
     size_t maxErrorLen,
     FractalPreferences& fractal) {
 
-    if (ParseFile(file, fractal, Error, maxErrorLen) != 0) {
-        return -1;
-    }
-    return 0;
+    return ParseFile(file, fractal, Error, maxErrorLen);
 }
 
 /* Opens pngfile, reads parameters from it (no checking if valid)
    it initializes graphics and shows image data line per line
-   (using ???_update_bitmap)
 */
 int ReadParametersAndImage(
     char* Error,
     size_t maxErrorLen,
     const char* pngf,
-    unsigned char* ready,
+    bool* ready,
     int* xstart,
     int* ystart,
     FractalPreferences& fractal,
@@ -257,8 +240,6 @@ int ReadParametersAndImage(
     LinePutter& lineDst) {
 
     png_info_struct png_info;
-    vidinfo_struct vidinfo;
-    disppal_struct disppal;
     int xadd, yadd, i, xres, yr;
     base_struct base, sbase;
     char pngfile[256];
@@ -287,20 +268,16 @@ int ReadParametersAndImage(
         if (fractal.view().isStereo()) {
             xres *= 2;
         }
-        if (zflag == ZFlag::NewZBuffer) {
+        if (ZFlag::NewZBuffer == zflag) {
             xres *= fractal.view()._antialiasing;
         }
         LexicallyScopedPtr<unsigned char> line = new unsigned char[xres * 3 + 1];
-        if (line == NULL) {
-            sprintf_s(Error, maxErrorLen, "Not enough memory to hold a line");
-            return -1;
-        }
-        if (InitGraphics(Error, maxErrorLen, fractal, *ready, &vidinfo, &disppal,
+        if (InitGraphics(Error, maxErrorLen, fractal, *ready,
             &xadd, &yadd, zflag != ZFlag::NewImage) != 0) {
             return -1;
         }
         yr = *ystart;
-        if (zflag == ZFlag::NewZBuffer) {
+        if (ZFlag::NewZBuffer == zflag) {
             yr *= fractal.view()._antialiasing;
         }
         if (CopyIDAT(false, &png_internal, NULL, yr,
@@ -309,7 +286,7 @@ int ReadParametersAndImage(
             return -1;
         }
     } catch (PNGException&) {
-        sprintf_s(Error, maxErrorLen, "File '%s' is not a valid png-file.\n", pngfile);
+        sprintf_s(Error, maxErrorLen, "File '%s' is not a valid PNG file.\n", pngfile);
         return -1;
     }
     return 0;
@@ -346,11 +323,11 @@ int SavePNG(
     if (view.isStereo()) {
         xres *= 2;
     }
-    if (zflag == ZFlag::NewZBuffer) {
+    if (ZFlag::NewZBuffer == zflag) {
         xres *= view._antialiasing;
     }
     yres = view._yres;
-    if (zflag == ZFlag::NewZBuffer) {
+    if (ZFlag::NewZBuffer == zflag) {
         yres *= view._antialiasing;
     }
     LexicallyScopedPtr<unsigned char> line = new unsigned char[xres * 3 + 2];
@@ -359,7 +336,6 @@ int SavePNG(
         pngfile, &png, png_internal,
         xstart, ystart, static_cast<int>(calc_time),
         fractal,
-        disppal,
         zflag)) {
         sprintf_s(Error, maxErrorLen, "Error writing file '%s' in PNGInitialization\n", pngfile);
         return -1;
@@ -388,10 +364,9 @@ int SavePNG(
 
 int BuildName(char* name, char* namewop, size_t maxNameLen, const char* ext, const char* file,
     char* Error, size_t maxErrorLen) {
-    char* c;
 
     strncpy_s(name, maxNameLen, file, 256);
-    c = strrchr(name, '.');
+    char* c = strrchr(name, '.');
     if (c != NULL) {
         strcpy_s(c, maxNameLen - (c - name), ext);
     } else {
@@ -447,11 +422,9 @@ int ReadParametersPNG(
     try {
         PNGFile png_internal(png, &png_info);
         i = ReadParameters(Error, maxErrorLen, &xstart, &ystart, png_internal, fractal);
-        /* if (i == -128) sprintf(Error, "Warning: File version higher than %s.",PROGVERSION); */
         if (i < 0 && i > -128) {
             return -1;
         }
-
         if (fractal.view().calcbase(&base, &sbase, WhichEye::Monocular) != 0) {
             sprintf_s(Error, maxErrorLen, "Strange error in '%s'\nError in FractalView!", file);
             return -1;
@@ -460,7 +433,6 @@ int ReadParametersPNG(
         sprintf_s(Error, maxErrorLen, "File '%s' is not a valid png-file.", file);
         return -1;
     }
-
     return 0;
 }
 
@@ -504,7 +476,7 @@ int GetParameters(const char* afile, char* Error, size_t maxErrorLen) {
     strcpy_s(file, sizeof(file), afile);
     ConvertPath(file);
     filewop = strrchr(file, GetSlash());
-    if (filewop == NULL) {
+    if (nullptr == filewop) {
         filewop = file;
     } else {
         filewop++;
@@ -538,7 +510,7 @@ int ImgFromZBuf(const char* file, const char* file2, char* Error, size_t maxErro
     s2 = FilenameWithoutPath(pngfile);
 
     /* Delete suffixes and append .png */
-    if ((s = strstr(s2, ".")) == NULL) {
+    if ((s = strstr(s2, ".")) == nullptr) {
         strcat_s(pngfile, sizeof(pngfile), ".png");
     } else {
         strcpy_s(s, sizeof(s), ".png");

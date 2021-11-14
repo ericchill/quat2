@@ -9,16 +9,11 @@
 
 
 /* DUMMY function prototypes */
-int DUMMY_ReturnVideoInfo(vidinfo_struct* vidinfo);
-int DUMMY_SetColors(disppal_struct* disppal);
 int DUMMY_Initialize(int x, int y, char* Error);
 int DUMMY_Done();
-int DUMMY_update_bitmap(long x1, long x2, long xres, int y, unsigned char* Buf,
-    int which);
 int DUMMY_getline(unsigned char* line, int y, long xres, ZFlag whichbuf);
 int DUMMY_check_event(void);
 int DUMMY_Change_Name(const char* s);
-void DUMMY_Debug(const char* s);
 void DUMMY_eol(int line);
 
 int ParseAndCalculate(const char* file, char* Error, char zflag);
@@ -59,8 +54,6 @@ int InitGraphics(
     size_t maxErrorLen,
     FractalPreferences& fractal,
     bool ready,
-    vidinfo_struct* vidinfo,
-    disppal_struct* disppal,
     int* xadd, int* yadd, 
     bool useZBuf);
 
@@ -93,8 +86,6 @@ int CalculateFractal(
     base_struct* lbase,
     base_struct* slbase,
     FractalPreferences& fractal,
-    vidinfo_struct* vidinfo,
-    disppal_struct* disppal,
     LinePutter& lineDst);
 
 

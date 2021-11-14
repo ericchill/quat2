@@ -191,35 +191,31 @@ void ColorPreview::del() {
 }
 
 void ColorPreview::Update() {
-    bool zero = false;
     float BBuf = 0.0F, CBuf = 0.0F;
     unsigned char col[3] = { 0, 0, 0};
-    double weightsum = 0.0;
 
-    CalcWeightsum(_pal);
-    for (size_t i = 0; i < _pal._nColors; i++) {
-	    if (_pal._cols[i].weight == 0.0) zero = true;
-	    weightsum += _pal._cols[i].weight;
-	}
-    _pos.clear(); _pos.push_back(0);
-	if (zero || weightsum == 0.0) {
+	double weightsum = _pal.computeWeightSum();
+    _pos.clear(); 
+	_pos.push_back(0);
+	if (0 == weightsum) {
 		_defined = false;
 	} else {
 	    _defined = true;
-	    BBuf = 1.0F;
-	    for (int i=0; i<w()-2*h(); i++) {
+		BBuf = 1.0f;
+	    for (int i = 0; i < w() - 2 * h(); i++) {
 		    CBuf = static_cast<float>(i)/static_cast<float>(w()-2*h());
-		    PixelvalueTrueMode(0, 0, 255, 255, 255, _pal, &col[0], &CBuf, &BBuf);
-		    for (int j=0; j<h(); j++) {
-			    _pixmap[3*(i+j*(w()-2*h()))] = col[0];
-			    _pixmap[3*(i+j*(w()-2*h()))+1] = col[1];
-			    _pixmap[3*(i+j*(w()-2*h()))+2] = col[2];
+		    _pal.pixelValue(0, 0, 255, 255, 255, &col[0], &CBuf, &BBuf);
+		    for (int j = 0; j < h(); j++) {
+				int idx = 3 * (i + j * (w() - 2 * h()));
+			    _pixmap[idx] = col[0];
+			    _pixmap[idx+1] = col[1];
+			    _pixmap[idx+2] = col[2];
 			}
 		}
 	    double offs = 0.0;
-	    for (int i=0; i<_pal._nColors; i++) {
+	    for (int i = 0; i < _pal._nColors; i++) {
 		    offs += _pal._cols[i].weight;
-		    _pos.push_back(static_cast<int>(offs/weightsum*static_cast<double>(w()-2*h())+0.5));
+		    _pos.push_back(static_cast<int>(offs / weightsum * static_cast<double>(w() - 2 * h()) + 0.5));
 		}
 	}
     redraw();
@@ -234,8 +230,8 @@ void ColorPreview::UpdateInputs() {
     _input_green2->value(_pal._cols[_idx].col2[1]);
     _input_blue2->value(_pal._cols[_idx].col2[2]);
     char buffer[1024];
-    sprintf_s(buffer, sizeof(buffer), "%s%zi/%s%zi", (_idx+1<10) ? " " : "", _idx+1, 
-	    (_pal._nColors<10) ? " " : "", _pal._nColors);
+    sprintf_s(buffer, sizeof(buffer), "%s%zi/%s%zi", (_idx + 1 < 10) ? " " : "", _idx + 1, 
+	    (_pal._nColors < 10) ? " " : "", _pal._nColors);
     _output_range->value(buffer);
 }
 

@@ -56,9 +56,10 @@ char f_tanh(double* a, const double* b);
 char f_random(double* a, const double* b);
 void GetObjectBefore_s(char* b, size_t size, char* s, int p);
 void GetObjectBehind_s(char* b, size_t size, char* s, int p);
-int IsVar(const char* s, struct progtype* prog);
+bool IsNumber(const char* s);
+bool IsVar(const char* s, struct progtype* prog);
 int VarNr(const char* s, struct progtype* prog);
-int IsRegister(const char* s);
+bool IsRegister(const char* s);
 int IsFunction(const char* s, struct progtype* prog);
 int AllocObjs(size_t len, char** a, char** b, char** c, char** d);
 int FreeObjs(char* a, char* b, char* c, char* d);
@@ -111,7 +112,7 @@ char f_div(double* a, const double* b) {
 }
 
 char f_pow(double* a, const double* b) {
-    if (*a == 0 && *b <= 0) return 1;   /* would be division by zero or 0^0 */
+    if (0 == *a && *b <= 0) return 1;   /* would be division by zero or 0^0 */
     else {
         if (*a < 0 && ceil(*b) != *b) return 1;   /* would be root of neg. number */
         else *a = pow(*a, *b);
@@ -231,12 +232,14 @@ void GetObjectBehind_s(char* b, size_t size, char* s, int p) {
     strcpy_s(b, size, s + p + 1); *(b + i - p - 1) = 0;
 }
 
-int IsVar(const char* s, progtype* prog) {
+bool IsVar(const char* s, progtype* prog) {
     int i;
 
     i = 0;
-    while (i < prog->vardef && strcmp(s, prog->varnames[i]) != 0) i++;
-    if (strcmp(s, prog->varnames[i]) != 0) return 0; else return 1;
+    while (i < prog->vardef && strcmp(s, prog->varnames[i]) != 0) {
+        i++;
+    }
+    return strcmp(s, prog->varnames[i]) == 0;
 }
 
 int VarNr(const char* s, progtype* prog) {
@@ -247,28 +250,27 @@ int VarNr(const char* s, progtype* prog) {
     if (strcmp(s, prog->varnames[i]) == 0 && i < prog->vardef) return(i); else return(255);
 }
 
-int IsNumber(const char* s) {
+bool IsNumber(const char* s) {
     char** endptr;
     char* p;
 
-    if (s[0] == 0) return 0;
+    if (0 == s[0]) return false;
     endptr = &p;
     strtod(s, endptr);
-    if (**endptr != 0) return 0;
-    return 1;
+    return 0 == **endptr;
 }
 
 
-int IsRegister(const char* s) {
+bool IsRegister(const char* s) {
     unsigned int i;
-    if (s[0] == 0) return 0;
+    if (0 == s[0]) return 0;
     if (strchr(registers, *s) != NULL) {
         i = 1;
         while (*(s + i) == ' ' && i < strlen(s) - 1) i++;
         if (*(s + i) != ' ' && i != 1) return 0;
-        return 1;
+        return true;
     }
-    return 0;
+    return false;
 }
 
 int IsFunction(const char* s, struct progtype* prog)
@@ -352,7 +354,7 @@ double calculate(char* notdef, struct progtype* prog) {
     }
     *notdef = 0;
     int i;
-    for (i = 0; prog->func[i] != NULL && i < 100 && *notdef == 0; i++) {
+    for (i = 0; prog->func[i] != NULL && i < 100 && 0 == *notdef; i++) {
         notdef += prog->func[i](prog->a[i], prog->b[i]);
     }
     return *(prog->a[i - 1]);
@@ -403,7 +405,7 @@ int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, progtype* prog) {
             brcount++;
         }
         if (a[j] == ')') brcount--;
-        if ((bropen != -1) && (brcount == 0)) {
+        if ((bropen != -1) && (0 == brcount)) {
             strncpy_s(suba, tmpStrLen, a + bropen + 1, j - (bropen + 1));
             suba[j - (bropen + 1)] = 0;
             error = DoTranslate(errorMsg, maxErrorLen, suba, prog);
@@ -491,7 +493,7 @@ int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, progtype* prog) {
                 sign = 1; /* string contains calculation signs */
                 GetObjectBefore_s(obj1, tmpStrLen, a, (char)i);
                 GetObjectBehind_s(obj2, tmpStrLen, a, (char)i);
-                if ((IsNumber(obj1) == 1) || (IsVar(obj1, prog) == 1)) {
+                if (IsNumber(obj1) || IsVar(obj1, prog)) {
                     /* create sequence "load register" */
                     if ((int)i - (int)strlen(obj1) < 0) {
                         sprintf_s(errorMsg, maxErrorLen, "Internal error #3");
@@ -500,7 +502,7 @@ int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, progtype* prog) {
                     } else a[i - strlen(obj1)] = registers[regscount];
                     prog->func[ocount] = f_set;
                     prog->a[ocount] = &(reg[regscount]);
-                    if (IsNumber(obj1) == 1) {
+                    if (IsNumber(obj1)) {
                         prog->z[ocount] = atof(obj1);
                         prog->b[ocount] = &(prog->z[ocount]);
                     } else prog->b[ocount] = &(prog->varvalues[VarNr(obj1, prog)]);
@@ -511,7 +513,7 @@ int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, progtype* prog) {
                         FreeObjs(obj1, obj2, priori, suba);
                         return 1;
                     }
-                } else if ((IsRegister(obj1) == 0) && (IsVar(obj1, prog) == 0)) {
+                } else if (!IsRegister(obj1) && !IsVar(obj1, prog)) {
                     sprintf_s(errorMsg, maxErrorLen, "Unknown object A %s ", obj1);
                     FreeObjs(obj1, obj2, priori, suba);
                     return 1;
@@ -524,14 +526,14 @@ int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, progtype* prog) {
                 case '/': prog->func[ocount] = f_div; break;
                 case '^': prog->func[ocount] = f_pow; break;
                 }
-                if (IsRegister(obj1) == 1)
+                if (IsRegister(obj1))
                     prog->a[ocount] = &(reg[strchr(registers, obj1[0]) - &registers[0]]);
-                if (IsRegister(obj2) == 1)
+                if (IsRegister(obj2))
                     prog->b[ocount] = &(reg[strchr(registers, obj2[0]) - &registers[0]]);
-                else if (IsNumber(obj2) == 1) {
+                else if (IsNumber(obj2)) {
                     prog->z[ocount] = atof(obj2);
                     prog->b[ocount] = &(prog->z[ocount]);
-                } else if (IsVar(obj2, prog) == 1)
+                } else if (IsVar(obj2, prog))
                     prog->b[ocount] = &(prog->varvalues[VarNr(obj2, prog)]);
                 else {
                     sprintf_s(errorMsg, maxErrorLen, "Unknown object B %s", obj2);
@@ -550,13 +552,13 @@ int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, progtype* prog) {
             }
         }
     }
-    if (sign == 0) {
-        if (IsRegister(a) == 1) {
+    if (0 == sign) {
+        if (IsRegister(a)) {
             errorMsg[0] = 0;
             FreeObjs(obj1, obj2, priori, suba);
             return 0;
         }
-        if (IsNumber(a) == 1) {
+        if (IsNumber(a)) {
             prog->func[ocount] = f_set;
             prog->a[ocount] = &(reg[regscount]);
             prog->b[ocount] = &(prog->z[ocount]);
@@ -564,7 +566,7 @@ int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, progtype* prog) {
             memset(a, ' ', strlen(a));
             a[0] = registers[regscount];
             ocount++; regscount++;
-        } else if (IsVar(a, prog) == 1) {
+        } else if (IsVar(a, prog)) {
             prog->func[ocount] = f_set;
             prog->a[ocount] = &(reg[regscount]);
             prog->b[ocount] = &(prog->varvalues[VarNr(a, prog)]);

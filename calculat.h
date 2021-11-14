@@ -51,6 +51,4 @@ double calculate(char *notdef, struct progtype *prog);
 /* values for variables in the formula-string may be set by function */
 /* "SetVariable" */
 /* The calculated value will be returned. */
-  
-int IsNumber(const char *s);
-/* returns 1 if s is a valid number */
+

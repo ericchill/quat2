@@ -17,8 +17,6 @@
 
 typedef char String_t[256];
 
-struct disppal_struct;
-
 
 /* name: name of INI-file
    altpath: alternative path to search for files
@@ -42,11 +40,6 @@ int ParseFile(
     char* Error_Msg,
     size_t maxErrorLen);
 
-enum class ColorMode {
-    Indexed,
-    RGB
-};
-
 /* Wants external format, writes internal to PNG */
 int writeQuatPNGHead(
     const char* name,
@@ -56,7 +49,6 @@ int writeQuatPNGHead(
     int ystart,
     long calctime,
     const FractalPreferences& fractal,
-    disppal_struct* disppal,
     ZFlag zflag);
 
 /* returns external format, reads internal from PNG */

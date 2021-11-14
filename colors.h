@@ -1,13 +1,55 @@
 #pragma once
 
-#include "parameters.h"
-
-int CreateDispPal(disppal_struct *disppal, RealPalette& realpal, int maxcol, double phongmax, int rdepth, int gdepth, int bdepth);
-int PixelvaluePalMode(int x1, int x2, int colmax, int brightmax, unsigned char *line, float *CBuf, float *BBuf);
-int PixelvalueTrueMode(int x1, int x2, int rmax, int gmax, int bmax, 
-   RealPalette& realpal, unsigned char *line, float *CBuf, float *BBuf);
-int CalcWeightsum(RealPalette& realpal);
-int FindNearestColor(disppal_struct *disppal, unsigned char r, unsigned char g, unsigned char b);
+#include "json.h"
 
 
-constexpr double GAMMA = 0.7;
+struct col_struct {
+    double weight;   /* Weight in a palette from 0.0 to 1.0 */
+                     /* 0 ... single color */
+                     /* >0 ... smoothly shaded to next color in */
+                     /* palette, the higher weight, the slower */
+    double col1[3];  /* Red, green, blue from 0.0 to 1.0 */
+    double col2[3];  /* dto. */
+
+    col_struct() : weight(0), col1(), col2() {}
+    col_struct(const json::value jv);
+    json::value toJSON() const;
+};
+
+
+class RealPalette : public JSONSerializable {
+public:
+    RealPalette() { reset(); }
+    RealPalette(const RealPalette& r);
+
+    double computeWeightSum();
+
+    int pixelValue(
+        int x1, int x2,
+        int rmax, int gmax, int bmax,
+        unsigned char* line,
+        float* CBuf, 
+        float* BBuf);
+
+    void reset();
+    void print();
+
+    RealPalette(const json::value& jv);
+    virtual json::value toJSON() const;
+
+    static constexpr size_t maxColors = 100;
+
+    struct col_struct _cols[maxColors];
+    size_t _nColors;
+
+private:
+
+    double _weightSum;
+
+    void GetTrueColor(double color, double* r, double* g, double* b);
+};
+
+RealPalette tag_invoke(const json::value_to_tag< RealPalette >&, json::value const& jv);
+
+
+constexpr double GAMMA = 1.0 / 2.2;
