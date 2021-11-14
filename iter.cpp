@@ -699,7 +699,7 @@ int FractalView::calcbase(base_struct* base, base_struct* sbase, WhichEye viewTy
 /* Determines the distance from object to point c->xcalc on viewplane
    in z direction.
    In other words: looks for the object in z direction */
-double calc_struct::obj_distance() {
+double calc_struct::obj_distance(int zStart) {
 
     int z, z2;
     iter_struct is;
@@ -722,7 +722,7 @@ double calc_struct::obj_distance() {
     int iter = 0;
 
     try {
-        for (z = 0; z < v._zres && iter != f._maxiter; z++) {
+        for (z = zStart; z < v._zres && iter != f._maxiter; z++) {
             is.xstart = xcalc + z * sbase._z;
             if (!cuts.cutaway(is.xstart)) {
                 iter = iterate_no_orbit(&is);

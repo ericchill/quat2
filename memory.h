@@ -1,13 +1,19 @@
 #pragma once
 
+#include <cerrno>
+#include <cassert>
 #include <stdio.h>
 #include <stdexcept>
 
 class LexicallyScopedFile {
     FILE* _fd;
+    errno_t _errno;
 public:
-    LexicallyScopedFile() : _fd(nullptr) {}
-    LexicallyScopedFile(FILE* fd) : _fd(fd) {}
+    LexicallyScopedFile() : _fd(nullptr), _errno(0) {}
+    LexicallyScopedFile(FILE* fd) : _fd(fd), _errno(0) {}
+    LexicallyScopedFile(const char* const name, const char* const mode) {
+        _errno = fopen_s(&_fd, name, mode);
+    }
     ~LexicallyScopedFile() {
         if (nullptr != _fd) {
             assert(0 == fflush(_fd));
@@ -17,9 +23,16 @@ public:
     FILE* operator=(FILE* fd) {
         assert(nullptr == _fd);
         _fd = fd;
+        return _fd;
     }
     operator FILE* () {
         return _fd;
+    }
+    bool isOpen() const {
+        return nullptr != _fd;
+    }
+    errno_t error() const {
+        return _errno;
     }
 };
 
@@ -105,7 +118,7 @@ public:
 };
 
 template<typename T>
-void fillArray(T* array, size_t nElems, const T& value) {
+inline void fillArray(T* array, size_t nElems, const T& value) {
     for (size_t i = 0; i < nElems; i++) {
         array[i] = value;
     }

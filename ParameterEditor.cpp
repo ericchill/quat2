@@ -44,6 +44,7 @@ void ParameterEditor::cb_ok_button_i(Fl_Return_Button*, void*) {
     window_preview->hide();
     _result = 1;
 }
+
 void ParameterEditor::cb_ok_button(Fl_Return_Button* o, void* v) {
     ((ParameterEditor*)(o->parent()->user_data()))->cb_ok_button_i(o, v);
 }
@@ -53,6 +54,7 @@ void ParameterEditor::cb_cancel_button_i(Fl_Button*, void*) {
     window_preview->hide();
     _result = 0;
 }
+
 void ParameterEditor::cb_cancel_button(Fl_Button* o, void* v) {
     ((ParameterEditor*)(o->parent()->user_data()))->cb_cancel_button_i(o, v);
 }
@@ -63,6 +65,7 @@ void ParameterEditor::cb_button_reset_i(Fl_Button*, void*) {
         set(fractal);
     };
 }
+
 void ParameterEditor::cb_button_reset(Fl_Button* o, void* v) {
     ((ParameterEditor*)(o->parent()->user_data()))->cb_button_reset_i(o, v);
 }
@@ -74,6 +77,7 @@ void ParameterEditor::cb_button_import_i(Fl_Button*, void*) {
         set(fractal);
     }
 }
+
 void ParameterEditor::cb_button_import(Fl_Button* o, void* v) {
     ((ParameterEditor*)(o->parent()->user_data()))->cb_button_import_i(o, v);
 }
@@ -85,6 +89,7 @@ void ParameterEditor::cb_button_read_i(Fl_Button*, void*) {
         set(fractal);
     };
 }
+
 void ParameterEditor::cb_button_read(Fl_Button* o, void* v) {
     ((ParameterEditor*)(o->parent()->user_data()))->cb_button_read_i(o, v);
 }
@@ -94,6 +99,7 @@ void ParameterEditor::cb_Write_i(Fl_Button*, void*) {
     get(fractal);
     MainWinPtr->Parameters_SaveAs(fractal);
 }
+
 void ParameterEditor::cb_Write(Fl_Button* o, void* v) {
     ((ParameterEditor*)(o->parent()->user_data()))->cb_Write_i(o, v);
 }
@@ -106,6 +112,7 @@ void ParameterEditor::cb_button_show_i(Fl_Light_Button* o, void*) {
         dialog->show();  // raise (Windows bug)
     };
 }
+
 void ParameterEditor::cb_button_show(Fl_Light_Button* o, void* v) {
     ((ParameterEditor*)(o->parent()->user_data()))->cb_button_show_i(o, v);
 }
@@ -118,6 +125,7 @@ void ParameterEditor::cb_DoPreview_i(Fl_Button*, void*) {
     calcPreview();
     Preview->redraw();
 }
+
 void ParameterEditor::cb_DoPreview(Fl_Button* o, void* v) {
     ((ParameterEditor*)(o->parent()->user_data()))->cb_DoPreview_i(o, v);
 }
@@ -361,10 +369,14 @@ int ParameterEditor::run() {
         Fl::wait();
         for (;;) {
             Fl_Widget* o = Fl::readqueue();
-            if (!o) break;
+            if (nullptr == 0) {
+                break;
+            }
         }
     }
-    if (dialog->shown()) dialog->hide();
+    if (dialog->shown()) {
+        dialog->hide();
+    }
     return _result;
 }
 
@@ -386,9 +398,11 @@ void ParameterEditor::get(FractalPreferences& fractal) {
 }
 
 void ParameterEditor::SetState(int state) {
-    if (_state == state) return;
+    if (_state == state) {
+        return;
+    }
     _state = state;
-    if (state == 1) {
+    if (1 == state) {
         vsbeside->deactivate();
         vsabove->deactivate();
         vsfront->deactivate();
@@ -403,7 +417,7 @@ void ParameterEditor::SetState(int state) {
         ok_button->hide();
         info->show();
     }
-    if (state == 2) {
+    if (2 == state) {
         vsbeside->deactivate();
         vsfront->deactivate();
         vsabove->deactivate();

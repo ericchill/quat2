@@ -114,7 +114,7 @@ int writeQuatPNGHead(
     ZFlag zflag)
     /* rewrites file "name" */
 {
-    char pngname[256], * s;
+    char pngname[256];
     z_stream c_stream;
     time_t dtime;
     unsigned char longBuf[4];
@@ -128,7 +128,7 @@ int writeQuatPNGHead(
     strcpy_s(pngname, sizeof(pngname), name);
     ConvertPath(pngname);
 
-    *png = fopen(pngname, "w+b");
+    errno_t err = fopen_s(png, pngname, "w+b");
     if (nullptr == *png) {
         return -1;
     }
@@ -175,9 +175,10 @@ int writeQuatPNGHead(
     png_internal.setChunkType(text_chunk_label);
     strcpy_s(Buf, bufAllocSize, "Creation Time");
     time(&dtime);
-    s = ctime(&dtime);
-    s[strlen(s) - 1] = '\0';
-    sprintf_s(&Buf[14], bufAllocSize - 14, "%s", s);
+    char timeStr[256];
+    ctime_s(timeStr, sizeof(timeStr), &dtime);
+    timeStr[strlen(timeStr) - 1] = '\0';
+    sprintf_s(&Buf[14], bufAllocSize - 14, "%s", timeStr);
     if (!png_internal.WriteChunk((unsigned char*)(char*)Buf, 14 + strlen(&Buf[14]) + 1)) {
         return -1;
     }
@@ -413,13 +414,16 @@ int GetNextName(char* nowname, char* namewop, size_t maxNameSize) {
         pathendp = nowname - 1;
     }
     strncpy_s(onlyname, sizeof(onlyname), pathendp + 1, 256);
-    if ((f = fopen(nowname, "r")) == nullptr) {
-        if (namewop != nullptr) {
-            strncpy_s(namewop, maxNameSize, onlyname, 80);
+    {
+        LexicallyScopedFile f(nowname, "r");
+        if (!f.isOpen()) {
+            if (namewop != nullptr) {
+                strncpy_s(namewop, maxNameSize, onlyname, strlen(onlyname));
+            }
+            return 0;
+            fclose(f);
         }
-        return 0;
     }
-    fclose(f);
     onlyextp = strrchr(onlyname, '.');
     strcpy_s(onlyext, sizeof(onlyext), ".png");
     if (onlyextp != nullptr) {
@@ -436,7 +440,7 @@ int GetNextName(char* nowname, char* namewop, size_t maxNameSize) {
     strncpy_s(name, sizeof(name), nowname, pathlen);
     name[pathlen] = '\0';
     sprintf_s(name, sizeof(name), "%s%s%02i%s", name, onlyname, n, onlyext);
-    for (n = 1; n <= 99 && (f = fopen(name, "r")) != nullptr; n++) {
+    for (n = 1; n <= 99 && (fopen_s(&f, name, "r"), f) != nullptr; n++) {
         fclose(f);
         strncpy_s(name, sizeof(name), nowname, pathlen);
         name[pathlen] = '\0';

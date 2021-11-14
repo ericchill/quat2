@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
+#include <string.h>
 #include "quat.h"
 #include "files.h"
 #include "quatfiles.h"
@@ -107,9 +108,10 @@ int CalculatePNG(
 
     /* Do PNG-Init for loading */
 
-    LexicallyScopedFile png1 = fopen(pngfile1, "rb");
-    if (nullptr == static_cast<FILE*>(png1)) {
-        sprintf_s(Error, maxErrorLen, "Cannot open file '%s'.'\n", pngfile1);
+    LexicallyScopedFile png1(pngfile1, "rb");
+    if (!png1.isOpen()) {
+        strerror_s(pngfile2, sizeof(pngfile2), png1.error());
+        sprintf_s(Error, maxErrorLen, "Cannot open file '%s': %s.'\n", pngfile1, pngfile2);
         return -1;
     }
     try {
@@ -243,13 +245,16 @@ int ReadParametersAndImage(
     int xadd, yadd, i, xres, yr;
     base_struct base, sbase;
     char pngfile[256];
+    char errString[256];
 
     strcpy_s(pngfile, sizeof(pngfile), pngf);
     ConvertPath(pngfile);
 
     /* Do PNG-Init for loading */
-    LexicallyScopedFile png = fopen(pngfile, "rb");
-    if (nullptr == png) {
+    LexicallyScopedFile png(pngfile, "rb");
+    if (!png.isOpen()) {
+        strerror_s(errString, sizeof(errString), png.error());
+        sprintf_s(Error, maxErrorLen, "Can't open \"%s\" for reading: %s\n", pngfile, errString);
         return -1;
     }
     try {
@@ -410,13 +415,15 @@ int ReadParametersPNG(
     int i;
     base_struct base, sbase;
     char file[256];
+    char errString[256];
 
     strcpy_s(file, sizeof(file), fil);
     ConvertPath(file);
 
-    LexicallyScopedFile png = fopen(file, "rb");
-    if (nullptr == png) {
-        sprintf_s(Error, maxErrorLen, "Cannot open png-file '%s'.'", file);
+    LexicallyScopedFile png(file, "rb");
+    if (!png.isOpen()) {
+        strerror_s(errString, sizeof(errString), png.error());
+        sprintf_s(Error, maxErrorLen, "Cannot open png-file '%s': %s'", file, errString);
         return -1;
     }
     try {

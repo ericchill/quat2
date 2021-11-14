@@ -37,10 +37,15 @@ void ObjectEditor::cb_maxiter_i(Fl_Value_Input* o, void*) {
     MP->maxiter(VI(o));
     frac._maxiter = VI(o);
     o->color(FL_WHITE);
-    if (VI(o) <= 0) o->color(FL_RED);
-    if (VI(o) > 65535) o->color(FL_RED);
+    if (VI(o) <= 0) {
+        o->color(FL_RED);
+    }
+    if (VI(o) > 65535) {
+        o->color(FL_RED);
+    }
     o->redraw();
 }
+
 void ObjectEditor::cb_maxiter(Fl_Value_Input* o, void* v) {
     ((ObjectEditor*)(o->parent()->user_data()))->cb_maxiter_i(o, v);
 }
@@ -52,6 +57,7 @@ void ObjectEditor::cb_lvalue_i(Fl_Value_Input* o, void*) {
     if (fabs(VD(o)) >= 1000000.0) o->color(FL_RED);
     o->redraw();
 }
+
 void ObjectEditor::cb_lvalue(Fl_Value_Input* o, void* v) {
     ((ObjectEditor*)(o->parent()->user_data()))->cb_lvalue_i(o, v);
 }
@@ -69,6 +75,7 @@ void ObjectEditor::cb_bailout_i(Fl_Value_Input* o, void*) {
     }
     o->redraw();
 }
+
 void ObjectEditor::cb_bailout(Fl_Value_Input* o, void* v) {
     ((ObjectEditor*)(o->parent()->user_data()))->cb_bailout_i(o, v);
 }
@@ -78,6 +85,7 @@ void ObjectEditor::cb_formula_i(Fl_Choice* o, void*) {
     frac._formula = VI(o);
     formula_changed();
 }
+
 void ObjectEditor::cb_formula(Fl_Choice* o, void* v) {
     ((ObjectEditor*)(o->parent()->user_data()))->cb_formula_i(o, v);
 }
@@ -96,6 +104,7 @@ void ObjectEditor::cb_cre_i(Fl_Value_Input* o, void*) {
     MP->SetCX(VD(o));
     frac._c[0] = VD(o);
 }
+
 void ObjectEditor::cb_cre(Fl_Value_Input* o, void* v) {
     ((ObjectEditor*)(o->parent()->user_data()))->cb_cre_i(o, v);
 }
@@ -104,6 +113,7 @@ void ObjectEditor::cb_ci_i(Fl_Value_Input* o, void*) {
     MP->SetCY(VD(o));
     frac._c[1] = VD(o);
 }
+
 void ObjectEditor::cb_ci(Fl_Value_Input* o, void* v) {
     ((ObjectEditor*)(o->parent()->user_data()))->cb_ci_i(o, v);
 }
@@ -112,6 +122,7 @@ void ObjectEditor::cb_cj_i(Fl_Value_Input* o, void*) {
     MP->cj(VD(o));
     frac._c[2] = VD(o);
 }
+
 void ObjectEditor::cb_cj(Fl_Value_Input* o, void* v) {
     ((ObjectEditor*)(o->parent()->user_data()))->cb_cj_i(o, v);
 }
@@ -120,6 +131,7 @@ void ObjectEditor::cb_ck_i(Fl_Value_Input* o, void*) {
     MP->ck(VD(o));
     frac._c[3] = VD(o);
 }
+
 void ObjectEditor::cb_ck(Fl_Value_Input* o, void* v) {
     ((ObjectEditor*)(o->parent()->user_data()))->cb_ck_i(o, v);
 }
@@ -127,6 +139,7 @@ void ObjectEditor::cb_ck(Fl_Value_Input* o, void* v) {
 void ObjectEditor::cb_up_i(Fl_Button*, void*) {
     MP->MoveUp();
 }
+
 void ObjectEditor::cb_up(Fl_Button* o, void* v) {
     ((ObjectEditor*)(o->parent()->parent()->user_data()))->cb_up_i(o, v);
 }
@@ -134,6 +147,7 @@ void ObjectEditor::cb_up(Fl_Button* o, void* v) {
 void ObjectEditor::cb__i(Fl_Button*, void*) {
     MP->MoveLeft();
 }
+
 void ObjectEditor::cb_(Fl_Button* o, void* v) {
     ((ObjectEditor*)(o->parent()->parent()->user_data()))->cb__i(o, v);
 }
@@ -141,6 +155,7 @@ void ObjectEditor::cb_(Fl_Button* o, void* v) {
 void ObjectEditor::cb_1_i(Fl_Button*, void*) {
     MP->ZoomIn();
 }
+
 void ObjectEditor::cb_1(Fl_Button* o, void* v) {
     ((ObjectEditor*)(o->parent()->parent()->user_data()))->cb_1_i(o, v);
 }
@@ -148,6 +163,7 @@ void ObjectEditor::cb_1(Fl_Button* o, void* v) {
 void ObjectEditor::cb_2_i(Fl_Button*, void*) {
     MP->ZoomOut();
 }
+
 void ObjectEditor::cb_2(Fl_Button* o, void* v) {
     ((ObjectEditor*)(o->parent()->parent()->user_data()))->cb_2_i(o, v);
 }
@@ -155,6 +171,7 @@ void ObjectEditor::cb_2(Fl_Button* o, void* v) {
 void ObjectEditor::cb_3_i(Fl_Button*, void*) {
     MP->MoveRight();
 }
+
 void ObjectEditor::cb_3(Fl_Button* o, void* v) {
     ((ObjectEditor*)(o->parent()->parent()->user_data()))->cb_3_i(o, v);
 }
@@ -162,6 +179,7 @@ void ObjectEditor::cb_3(Fl_Button* o, void* v) {
 void ObjectEditor::cb_down_i(Fl_Button*, void*) {
     MP->MoveDown();
 }
+
 void ObjectEditor::cb_down(Fl_Button* o, void* v) {
     ((ObjectEditor*)(o->parent()->parent()->user_data()))->cb_down_i(o, v);
 }
@@ -171,6 +189,7 @@ void ObjectEditor::cb_redraw_i(Fl_Button*, void*) {
     MP->redraw();
     MP->CheckUpdate();
 }
+
 void ObjectEditor::cb_redraw(Fl_Button* o, void* v) {
     ((ObjectEditor*)(o->parent()->user_data()))->cb_redraw_i(o, v);
 }
@@ -178,8 +197,8 @@ void ObjectEditor::cb_redraw(Fl_Button* o, void* v) {
 void ObjectEditor::cb_p_re_i(Fl_Value_Input* o, void*) {
     MP->p(paramscroll->value() - 1, 0, VD(o));
     frac._p[paramscroll->value() - 1][0] = VD(o);
-    //cout << paramscroll->value() << endl;
 }
+
 void ObjectEditor::cb_p_re(Fl_Value_Input* o, void* v) {
     ((ObjectEditor*)(o->parent()->parent()->user_data()))->cb_p_re_i(o, v);
 }
@@ -188,6 +207,7 @@ void ObjectEditor::cb_p_i_i(Fl_Value_Input* o, void*) {
     MP->p(paramscroll->value() - 1, 1, VD(o));
     frac._p[paramscroll->value() - 1][1] = VD(o);
 }
+
 void ObjectEditor::cb_p_i(Fl_Value_Input* o, void* v) {
     ((ObjectEditor*)(o->parent()->parent()->user_data()))->cb_p_i_i(o, v);
 }
@@ -196,6 +216,7 @@ void ObjectEditor::cb_p_j_i(Fl_Value_Input* o, void*) {
     MP->p(paramscroll->value() - 1, 2, VD(o));
     frac._p[paramscroll->value() - 1][2] = VD(o);
 }
+
 void ObjectEditor::cb_p_j(Fl_Value_Input* o, void* v) {
     ((ObjectEditor*)(o->parent()->parent()->user_data()))->cb_p_j_i(o, v);
 }
@@ -204,6 +225,7 @@ void ObjectEditor::cb_p_k_i(Fl_Value_Input* o, void*) {
     MP->p(paramscroll->value() - 1, 3, VD(o));
     frac._p[paramscroll->value() - 1][3] = VD(o);
 }
+
 void ObjectEditor::cb_p_k(Fl_Value_Input* o, void* v) {
     ((ObjectEditor*)(o->parent()->parent()->user_data()))->cb_p_k_i(o, v);
 }
@@ -434,11 +456,15 @@ void ObjectEditor::get(FractalSpec& f) {
 void ObjectEditor::formula_changed() {
     int pno = 0;
     switch (frac._formula) {
-    case 4: pno = 1; break;
-    default: pno = 0; break;
+    case 4:
+        pno = 1;
+        break;
+    default:
+        pno = 0;
+        break;
     }
 
-    if (pno == 0) {
+    if (0 == pno) {
         paramgroup->hide();
         paramgroup2->hide();
     } else {
@@ -447,7 +473,9 @@ void ObjectEditor::formula_changed() {
     }
 
     paramscroll->scrollvalue(1, 1, 1, pno);
-    if (pno != 0) paramscroll_changed();
+    if (pno != 0) {
+        paramscroll_changed();
+    }
 }
 
 void ObjectEditor::paramscroll_changed() {

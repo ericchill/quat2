@@ -38,6 +38,7 @@ using namespace std;
 #include <FL/Fl.H>
 
 #include "common.h"
+#include "memory.h"
 #include "iter.h"
 #include "MandelPreview.h"
 #include "CReplacements.h"
@@ -55,23 +56,21 @@ MandelPreview::MandelPreview(int x, int y, int w, int h, const char *label = 0)
 {
 	// Use only that part of the widget area that the maximum
 	// rectangle with the correct aspect ration can fill
-	if (static_cast<double>(_len_x)/static_cast<double>(_len_y) > _mandel_lx/_mandel_ly) {
-		_len_x = static_cast<int>(_len_y * _mandel_lx/_mandel_ly)-2;
-	} else if (static_cast<double>(_len_x)/static_cast<double>(_len_y) < _mandel_lx/_mandel_ly) {
-		_len_y = static_cast<int>(_len_x * _mandel_ly/_mandel_lx)-2;
+	if (static_cast<double>(_len_x) / static_cast<double>(_len_y) > _mandel_lx/_mandel_ly) {
+		_len_x = static_cast<int>(_len_y * _mandel_lx / _mandel_ly) - 2;
+	} else if (static_cast<double>(_len_x) / static_cast<double>(_len_y) < _mandel_lx / _mandel_ly) {
+		_len_y = static_cast<int>(_len_x * _mandel_ly / _mandel_lx)-2;
 	}
 
 	_pixmap = new unsigned char[_len_x*_len_y];
 
-	for (int j=0; j<4; ++j) {
-		for (int i=0; i<4; ++i) {
+	for (int j = 0; j < 4; ++j) {
+		for (int i = 0; i < 4; ++i) {
 			_pic_p[j][i] = _p[j][i] = 0.0;
 		}
 	}
 
 	C2Coo(_cx, _cy, _CursorX, _CursorY);
-
-//	CalcImage();
 }
 
 MandelPreview::~MandelPreview()
@@ -84,12 +83,11 @@ void MandelPreview::draw()
 	bool cursor = (damage() & 2) != 0;
 	if (!isValid()) {
 		fl_color(255, 255, 255);
-		fl_rectf(x()+1, y()+1, _len_x, _len_y);
-		fl_color(0,0,0);
-		fl_rect(x(), y(), _len_x+2, _len_y+2);
-		fl_draw("invalid", x()+2, y()+16);
-		fl_draw("Parameters", x()+2, y()+30);
-		return;
+		fl_rectf(x() + 1, y() + 1, _len_x, _len_y);
+		fl_color(0, 0, 0);
+		fl_rect(x(), y(), _len_x + 2, _len_y + 2);
+		fl_draw("invalid", x() + 2, y() + 16);
+		fl_draw("Parameters", x() + 2, y() + 30);
 	}
 	if (!cursor) {
 		fl_draw_image_mono(_pixmap, x()+1, y()+1, _len_x, _len_y);
@@ -104,17 +102,17 @@ void MandelPreview::draw()
 	fl_push_clip(x()+1, y()+1, _len_x, _len_y);
 	// Delete old cursor
 	if (cursor)	{
-		fl_draw_image_mono(_pixmap+(_oldCursorY-4)*_len_x+_oldCursorX-4,
-			x()+_oldCursorX-3, y()+_oldCursorY-3, 7, 7, 1, _len_x);
+		fl_draw_image_mono(
+			_pixmap + (_oldCursorY - 4) * _len_x + _oldCursorX - 4,
+			x() + _oldCursorX - 3, y() + _oldCursorY - 3, 7, 7, 1, _len_x);
 	}
 	// Draw the cursor
 	fl_color(255, 0, 0);
-	fl_line(x()+_CursorX, y()+_CursorY-1, x()+_CursorX, y()+_CursorY-3);
-	fl_line(x()+_CursorX-1, y()+_CursorY, x()+_CursorX-3, y()+_CursorY);
-	fl_line(x()+_CursorX, y()+_CursorY+1, x()+_CursorX, y()+_CursorY+3);
-	fl_line(x()+_CursorX+1, y()+_CursorY, x()+_CursorX+3, y()+_CursorY);
+	fl_line(x() + _CursorX, y() + _CursorY-1, x() + _CursorX, y() + _CursorY - 3);
+	fl_line(x() + _CursorX - 1, y() + _CursorY, x() + _CursorX - 3, y() + _CursorY);
+	fl_line(x() + _CursorX, y() + _CursorY+1, x() + _CursorX, y() + _CursorY + 3);
+	fl_line(x() + _CursorX+1, y() + _CursorY, x() + _CursorX + 3, y() + _CursorY);
 	fl_pop_clip();
-	return;
 }
 
 int MandelPreview::handle(int event)
@@ -125,18 +123,17 @@ int MandelPreview::handle(int event)
 	  case FL_LEAVE:
 		return 1;
 	  case FL_PUSH:
-		if (Fl::event_button() == 3) {
+		if (FL_RIGHT_MOUSE == Fl::event_button()) {
 			CalcImage();
 			redraw();
 			CheckUpdate();
 			return 1;
 		}
-		if (Fl::event_button() == 1)
-		{
+		if (FL_LEFT_MOUSE == Fl::event_button()) {
 			LButtonPressed = true;
 			fl_cursor(FL_CURSOR_NONE);
 			int mx = Fl::event_x(), my = Fl::event_y();
-			if (x()<mx && mx<x()+_len_x+1 && y()<my && my<y()+_len_y+1) {
+			if (x() < mx && mx < x() + _len_x + 1 && y() < my && my < y() + _len_y + 1) {
 				_oldCursorX = _CursorX;
 				_CursorX = mx - x();
 				_oldCursorY = _CursorY;
@@ -151,7 +148,8 @@ int MandelPreview::handle(int event)
 					_input_ci->value(ci);
 					_input_ci->do_callback();
 				}
-				_cx = cre; _cy = ci;
+				_cx = cre;
+				_cy = ci;
 				damage(2);
 				return 1;
 			} else {
@@ -159,7 +157,7 @@ int MandelPreview::handle(int event)
 			}
 		}
 	  case FL_RELEASE:
-		if (Fl::event_button() == 1) {
+		if (FL_LEFT_MOUSE == Fl::event_button()) {
 			fl_cursor(FL_CURSOR_DEFAULT);
 			LButtonPressed = false;
 			return 1;
@@ -168,26 +166,20 @@ int MandelPreview::handle(int event)
 		  if (!LButtonPressed) {
 			  return 0;
 		  }
-		  int xm = Fl::event_x()-x(); int ym = Fl::event_y()-y();
-		  if (xm>=1 && xm<_len_x+1 && ym>=1 && ym<_len_y+1) {
+		  int xm = Fl::event_x() - x();
+		  int ym = Fl::event_y() - y();
+		  if (xm >= 1 && xm < _len_x + 1 && ym >= 1 && ym < _len_y + 1) {
 			  fl_cursor(FL_CURSOR_NONE);
 		  } else {
 			  fl_cursor(FL_CURSOR_DEFAULT);
 		  }
-		  if (xm<1) {
-			  xm = 1;
-		  }
-		  if (xm>=_len_x+1) {
-			  xm = _len_x;
-		  }
-		  if (ym<1) {
-			  ym = 1;
-		  } if (ym>=_len_y+1) {
-			  ym = _len_y;
-		  }
+		  xm = clamp<int>(xm, 1, _len_x);
+		  ym = clamp<int>(ym, 1, _len_y);
 		  Coo2C(xm, ym, _cx, _cy);
-		  _input_cre->value(_cx); _input_ci->value(_cy);
-		  _input_cre->do_callback(); _input_ci->do_callback();
+		  _input_cre->value(_cx);
+		  _input_ci->value(_cy);
+		  _input_cre->do_callback();
+		  _input_ci->do_callback();
 		  SetMyCursor(xm, ym);
 		  redraw();
 		  break;
@@ -201,7 +193,7 @@ void MandelPreview::MoveLeft()
 {
 	int x = 0, y = 0;
 
-	_mandel_x -= _mandel_lx/3.0;
+	_mandel_x -= _mandel_lx / 3.0;
 	C2Coo(_cx, _cy, x, y);
 	SetMyCursor(x, y);
 	CalcImage();
@@ -212,7 +204,7 @@ void MandelPreview::MoveRight()
 {
 	int x = 0, y = 0;
 
-	_mandel_x += _mandel_lx/3.0;
+	_mandel_x += _mandel_lx / 3.0;
 	C2Coo(_cx, _cy, x, y);
 	SetMyCursor(x, y);
 	CalcImage();
@@ -223,7 +215,7 @@ void MandelPreview::MoveUp()
 {
 	int x = 0, y = 0;
 
-	_mandel_y -= _mandel_ly/3.0;
+	_mandel_y -= _mandel_ly / 3.0;
 	C2Coo(_cx, _cy, x, y);
 	SetMyCursor(x, y);
 	CalcImage();
@@ -234,7 +226,7 @@ void MandelPreview::MoveDown()
 {
 	int x = 0, y = 0;
 
-	_mandel_y += _mandel_ly/3.0;
+	_mandel_y += _mandel_ly / 3.0;
 	C2Coo(_cx, _cy, x, y);
 	SetMyCursor(x, y);
 	CalcImage();
@@ -272,10 +264,10 @@ void MandelPreview::CenterCursor()
 
 void MandelPreview::SetMyCursor(int x, int y)
 {
-//	if (x>len_x || x<0) x = UNDEFINED;
-//	if (y>len_y || y<0) y = UNDEFINED;
-	_oldCursorX = _CursorX; _oldCursorY = _CursorY;
-	_CursorX = x; _CursorY = y;
+	_oldCursorX = _CursorX;
+	_oldCursorY = _CursorY;
+	_CursorX = x;
+	_CursorY = y;
 }
 
 void MandelPreview::C2Coo(double cx, double cy, int& x, int& y)
@@ -286,27 +278,21 @@ void MandelPreview::C2Coo(double cx, double cy, int& x, int& y)
 	assert(_len_y != 0.0);
 	x = static_cast<int>((cx - _mandel_x) / _mandel_lx * _len_x + 0.5);
 	y = static_cast<int>((cy - _mandel_y) / _mandel_ly * _len_y + 0.5);
-//	if (CursorY>len_y || CursorY<0) CursorY = UNDEFINED;
-//	if (CursorX>len_x || CursorX<0) CursorX = UNDEFINED;
-	return;
 }
 
 void MandelPreview::Coo2C(int x, int y, double& cx, double& cy)
 {
 	assert(_len_x != 0.0);
 	assert(_len_y != 0.0);
-	cx = _mandel_x + static_cast<double>(x)/_len_x * _mandel_lx;
-	cy = _mandel_y + static_cast<double>(y)/_len_y * _mandel_ly;
+	cx = _mandel_x + static_cast<double>(x) / _len_x * _mandel_lx;
+	cy = _mandel_y + static_cast<double>(y) / _len_y * _mandel_ly;
 }
 
 int MandelPreview::CalcMPixel(int x, int y)
 {
 	int (*iter) (struct iter_struct*);
 	static struct iter_struct is;
-//	static point xstart = { 0.0, 0.0, 0.0, 0.0 };
-//	static point c = { 0.0, 0.0, 0.0, 0.0 };
-//	static double xr = 0.0, yr = 0.0;
-	Quat *orbit = new Quat[_Maxiter+1];
+	LexicallyScopedPtr<Quat> orbit = new Quat[_Maxiter+1];
 
 	is.xstart = 0;
 
@@ -342,10 +328,7 @@ int MandelPreview::CalcMPixel(int x, int y)
 	is.exactiter = 0;
 	is.orbit = &orbit[0];
 	
-	int ret = (iter(&is) == _Maxiter ? 1 : 0);
-	
-	delete[] orbit;
-	return ret;
+	return iter(&is) == _Maxiter ? 1 : 0;
 }
 
 void MandelPreview::CalcImage()
@@ -356,16 +339,19 @@ void MandelPreview::CalcImage()
 	fl_cursor(FL_CURSOR_WAIT);
 	memset(_pixmap, 255, _len_x * _len_y);
 	for (int yz = 0; yz < _len_y; yz++) {
-		for (int x =0; x < _len_x; x++) {
-			if (CalcMPixel(x+1, yz+1)) {
+		for (int x = 0; x < _len_x; x++) {
+			if (CalcMPixel(x + 1, yz + 1)) {
 				_pixmap[x + _len_x * yz] = 0;
 			}
 		}
 	}
-	_pic_cj = _cj; _pic_ck = _ck; _pic_Maxiter = _Maxiter; _pic_Bailout = _Bailout;
+	_pic_cj = _cj;
+	_pic_ck = _ck;
+	_pic_Maxiter = _Maxiter;
+	_pic_Bailout = _Bailout;
 	_pic_Formula = _Formula;
-	for (int j=0; j<4; ++j) {
-		for (int i=0; i<4; ++i) {
+	for (int j = 0; j < 4; ++j) {
+		for (int i = 0; i < 4; ++i) {
 			_pic_p[j][i] = _p[j][i];
 		}
 	}
@@ -375,17 +361,32 @@ void MandelPreview::CalcImage()
 
 void MandelPreview::CheckUpdate()
 {
-	if (_pic_cj != _cj || _pic_ck != _ck || _pic_Maxiter != _Maxiter
-		|| _pic_Bailout != _Bailout || _pic_Formula != _Formula)
-	_updated = false; else _updated = true;
-	if (_updated) for (int j=0; j<4; ++j) for (int i=0; i<4; ++i)
-		if (_p[j][i] != _pic_p[j][i]) _updated = false;
+	_updated = !(
+		_pic_cj != _cj
+		|| _pic_ck != _ck 
+		|| _pic_Maxiter != _Maxiter
+		|| _pic_Bailout != _Bailout
+		|| _pic_Formula != _Formula);
+	if (_updated) {
+		for (int j = 0; j < 4; ++j) {
+			for (int i = 0; i < 4; ++i) {
+				if (_p[j][i] != _pic_p[j][i]) {
+					_updated = false;
+				}
+			}
+		}
+	}
 	damage(1);
-	if (_button_update == NULL) return;
-	if (!_updated) _button_update->activate(); else _button_update->deactivate();
+	if (nullptr != _button_update) {
+		if (_updated) {
+			_button_update->deactivate();
+		} else {
+			_button_update->activate();
+		}
+	}
 }
 
 bool MandelPreview::isValid()
 {
-	return (_Maxiter>0) && (_Bailout>=0.0) && (_Formula>=0) && (_Formula<=5);
+	return (_Maxiter > 0) && (_Bailout >= 0.0) && (_Formula >= 0) && (_Formula <= 5);
 }

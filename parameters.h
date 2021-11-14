@@ -323,8 +323,9 @@ FractalPreferences tag_invoke(const json::value_to_tag< FractalPreferences >&, j
 struct iter_struct;
 
 struct calc_struct {
-    calc_struct operator=(const calc_struct& c) {
+    calc_struct& operator=(const calc_struct& c) {
         memcpy(this, &c, sizeof(*this));
+        return *this;
     }
     Quat xp, xs, xq, xcalc;
     FractalSpec f;
@@ -353,7 +354,7 @@ struct calc_struct {
     int calcline(long x1, long x2, int y,
         double* LBuf, float* BBuf, float* CBuf,
         ZFlag zflag);
-    double obj_distance();
+    double obj_distance(int zStart = 0);
     float colorizepoint();
     float brightpoint(long x, int y, double* LBuf);
 };

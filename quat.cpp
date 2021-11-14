@@ -269,6 +269,65 @@ int LBuf_ZBuf(
     return 0;
 }
 
+int CalculateFractalLine(
+    ZFlag zflag,
+    int iy,
+    int* xstart,
+    int pixelsPerCheck,
+    calc_struct& calc,
+    FractalPreferences& fractal,
+    double* lbuf,
+    float* cbuf,
+    float* bbuf,
+    unsigned char* line,
+    bool firstLine,
+    LinePutter& lineDst) {
+
+    long xres_st = fractal.view()._xres;
+    long xres_aa = fractal.view()._xres * fractal.view()._antialiasing;
+    long xres_st_aa = xres_aa;
+    if (fractal.view().isStereo()) {
+        xres_st *= 2;
+        xres_st_aa *= 2;
+    }
+
+    for (int ii = *xstart; ii < fractal.view()._xres; ii += pixelsPerCheck) {
+        long imax = ii + pixelsPerCheck - 1;
+        if (imax > fractal.view()._xres - 1) {
+            imax = fractal.view()._xres - 1;
+        }
+
+        calc.calcline(ii, imax, iy, lbuf, bbuf, cbuf, zflag);  // right eye or monocular
+
+        /* image to calculate */
+        if (shouldCalculateImage(zflag) && !firstLine) {
+            fractal.realPalette().pixelValue(ii, imax, 255, 255, 255, &line[1], cbuf, bbuf);
+        }
+        /* Display and Transfer */
+        if (ZFlag::NewZBuffer == zflag) {
+            for (int kk = 1; kk < fractal.view()._antialiasing + 1; kk++) {
+                LBuf_ZBuf(fractal.view(), lbuf, line, ii, imax, kk, 0);
+                lineDst.putLine(ii * fractal.view()._antialiasing,
+                    (imax + 1) * fractal.view()._antialiasing - 1,
+                    xres_st_aa,
+                    iy * fractal.view()._antialiasing + kk - 1,
+                    line + 1,
+                    true);
+            }
+        } else if (!firstLine) {
+            lineDst.putLine(ii, imax, xres_st, iy, line + 1, false);
+        }
+        if ((imax == fractal.view()._xres - 1) && !firstLine) {
+            eol(iy + 1);
+        }
+        int rrv = check_event();
+        if (rrv != 0) {
+            return rrv;
+        }
+    }
+    return 0;
+}
+
 int CalculateFractal(
     char* Error,
     size_t maxErrorLen,
@@ -307,8 +366,10 @@ int CalculateFractal(
     LexicallyScopedPtr<unsigned char> line3;
     calc_struct cr, cl;
     char MSG[300];
-    long ii, kk;
 
+#ifdef USE_GPU
+    pixelsPerCheck = 100;
+#endif
     FractalSpec frac = fractal.fractal(); 
     FractalView view = fractal.view();
 
@@ -329,7 +390,7 @@ int CalculateFractal(
         delete[] GlobalOrbit;
     }
     GlobalOrbit = new Quat[frac._maxiter + 2]();
-    /* "+2", because orbit[0] is special flag for orbite,j,k,l */
+    /* "+2", because orbit[0] is special flag for orbite,iy,k,l */
     AllocBufs(view, zflag, CBuf, BBuf, LBufR, LBufL, line, line2, line3);
 
     time_t my_time = time(NULL);
@@ -396,21 +457,21 @@ int CalculateFractal(
     }
 
     /* recalculate last line when resuming an image without ZBuffer */
-    bool firstline = false;
-    if (zflag == ZFlag::NewImage) {
+    bool firstLine = false;
+    if (ZFlag::NewImage == zflag) {
         (*ystart)--;
         *xstart = 0;
-        firstline = true;
+        firstLine = true;
         Change_Name("recalc.");
     }
-    int j;
-    for (j = *ystart; j < view._yres; j++) {
+ 
+    for (int iy = *ystart; iy < view._yres; iy++) {
         /* Initialize variables for calcline (which change from line to line) */
-        cr.xp = srbase->_O + j * srbase->_y;
+        cr.xp = srbase->_O + iy * srbase->_y;
         cr.xp[3] = frac._lvalue;
         cr.xs[3] = frac._lvalue;
         if (view.isStereo()) {
-            cl.xp = slbase->_O + j * slbase->_y;
+            cl.xp = slbase->_O + iy * slbase->_y;
             cl.xp[3] = frac._lvalue;
             cl.xs[3] = frac._lvalue;
         }
@@ -421,10 +482,10 @@ int CalculateFractal(
             memcpy(&LBufL[0], &LBufL[view._antialiasing * xres_aa], xres_aa * sizeof(LBufL[0]));
         }
 
-        if (zflag == ZFlag::ImageFromZBuffer) {
-            for (ii = 0; ii < view._antialiasing + 1; ii++) {
-                if (j + ii > 0) {  /* this doesn´t work for the 1st line */
-                    QU_getline(line3, j * view._antialiasing + ii - 1, xres_st_aa, ZFlag::NewZBuffer);
+        if (ZFlag::ImageFromZBuffer == zflag) {
+            for (int ii = 0; ii < view._antialiasing + 1; ii++) {
+                if (iy + ii > 0) {  /* this doesn´t work for the 1st line */
+                    QU_getline(line3, iy * view._antialiasing + ii - 1, xres_st_aa, ZFlag::NewZBuffer);
                     for (int i = 0; i < xres_aa; i++) {
                         LBufR[i + ii * xres_aa] = static_cast<double>(threeBytesToLong(&line[i * 3])) / 100.0;
                         if (view.isStereo()) {
@@ -439,22 +500,20 @@ int CalculateFractal(
                 }
             }
         }
-        for (ii = *xstart; ii < view._xres; ii += pixelsPerCheck) {
+        for (int ii = *xstart; ii < view._xres; ii += pixelsPerCheck) {
             long imax = ii + pixelsPerCheck - 1;
-            if (imax > view._xres - 1) {
-                imax = view._xres - 1;
-            }
+            imax = std::min<long>(imax, view._xres - 1);
 
-            cr.calcline(ii, imax, j, LBufR, BBuf, CBuf, zflag);  // right eye or monocular
+            cr.calcline(ii, imax, iy, LBufR, BBuf, CBuf, zflag);  // right eye or monocular
 
             /* image to calculate */
-            if (shouldCalculateImage(zflag) && !firstline) {
+            if (shouldCalculateImage(zflag) && !firstLine) {
                 fractal.realPalette().pixelValue(ii, imax, 255, 255, 255,  &line[1], CBuf, BBuf);
             }
             if (view.isStereo()) {
-                cl.calcline(ii, imax, j, LBufL, &BBuf[view._xres], &CBuf[view._xres], zflag);   /* left eye image */
+                cl.calcline(ii, imax, iy, LBufL, &BBuf[view._xres], &CBuf[view._xres], zflag);   /* left eye image */
                /* image to calculate */
-                if (shouldCalculateImage(zflag) && !firstline) {
+                if (shouldCalculateImage(zflag) && !firstLine) {
                     fractal.realPalette().pixelValue(
                         ii, imax, 255, 255, 255,
                         &line[3 * view._xres + 1],
@@ -463,35 +522,35 @@ int CalculateFractal(
                 }
             }
             /* Display and Transfer */
-            if (zflag == ZFlag::NewZBuffer) {  /* the ZBuffer */
-                for (kk = 1; kk < view._antialiasing + 1; kk++) {
+            if (ZFlag::NewZBuffer == zflag) {
+                for (int kk = 1; kk < view._antialiasing + 1; kk++) {
                     LBuf_ZBuf(view, LBufR, line, ii, imax, kk, 0);
                     lineDst.putLine(ii * view._antialiasing,
                         (imax + 1) * view._antialiasing - 1,
                         xres_st_aa,
-                        j * view._antialiasing + kk - 1,
+                        iy * view._antialiasing + kk - 1,
                         line + 1,
                         true);
                 }
                 if (view.isStereo()) {
-                    for (kk = 1; kk < view._antialiasing + 1; kk++) {
+                    for (int kk = 1; kk < view._antialiasing + 1; kk++) {
                         LBuf_ZBuf(view, LBufL, line, ii, imax, kk, xres_aa);
                         lineDst.putLine(ii * view._antialiasing + xres_aa,
                             (imax + 1) * view._antialiasing - 1 + xres_aa,
                             xres_st_aa,
-                            j * view._antialiasing + kk - 1,
+                            iy * view._antialiasing + kk - 1,
                             line + 1,
                             true);
                     }
                 }
-            } else if (!firstline) {   /* the image */
-                lineDst.putLine(ii, imax, xres_st, j, line + 1, false);
+            } else if (!firstLine) {   /* the image */
+                lineDst.putLine(ii, imax, xres_st, iy, line + 1, false);
                 if (view.isStereo()) {
-                    lineDst.putLine(ii + view._xres, imax + view._xres, xres_st, j, line + 1, false);
+                    lineDst.putLine(ii + view._xres, imax + view._xres, xres_st, iy, line + 1, false);
                 }
             }
-            if ((imax == view._xres - 1) && !firstline) {
-                eol(j + 1);
+            if ((imax == view._xres - 1) && !firstLine) {
+                eol(iy + 1);
             }
             int rrv = check_event();
             if (rrv != 0) {
@@ -502,13 +561,14 @@ int CalculateFractal(
                 memset(line, 0, i + 1);
                 calc_time += time(NULL) - my_time;
                 if (png != NULL) {
-                    PNGEnd(*png_internal, line, 0, j);
+                    PNGEnd(*png_internal, line, 0, iy);
                     fclose(*png);
                 }
-                *ystart = j;
+                *ystart = iy;
                 *xstart = ii + 1;
                 if (*xstart == view._xres) {
-                    *xstart = 0; (*ystart)++;
+                    *xstart = 0;
+                    (*ystart)++;
                 }
                 Done();
                 return rrv;
@@ -518,15 +578,15 @@ int CalculateFractal(
         if (NULL != png) {
             switch (zflag) {
             case ZFlag::NewImage:
-                if (!firstline) {
+                if (!firstLine) {
                     line[0] = '\0';       /* Set filter method */
                     png_internal->DoFiltering(line);
                     png_internal->WritePNGLine(line);
                 }
                 break;
             case ZFlag::NewZBuffer:
-                if (!firstline) {
-                    for (kk = 1; kk < view._antialiasing + 1; kk++) {
+                if (!firstLine) {
+                    for (int kk = 1; kk < view._antialiasing + 1; kk++) {
                         LBuf_ZBuf(view, LBufR, line, 0, view._xres - 1, kk, 0);
                         if (view.isStereo()) {
                             LBuf_ZBuf(view, LBufL, line, 0, view._xres - 1, kk, xres_aa);
@@ -543,12 +603,12 @@ int CalculateFractal(
                 png_internal->WritePNGLine(line);
             }
         }
-        firstline = false;
+        firstLine = false;
     }
 
     calc_time += time(NULL) - my_time;
     if (png != NULL) {
-        PNGEnd(*png_internal, line, 0, j);
+        PNGEnd(*png_internal, line, 0, view._yres);
         fclose(*png);
     }
 
@@ -560,7 +620,7 @@ int CalculateFractal(
         Done();
     }
     *xstart = 0;
-    *ystart = j;
+    *ystart = view._yres;
     return 0;
 }
 

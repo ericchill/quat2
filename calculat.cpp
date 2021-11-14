@@ -63,7 +63,7 @@ bool IsRegister(const char* s);
 int IsFunction(const char* s, struct progtype* prog);
 int AllocObjs(size_t len, char** a, char** b, char** c, char** d);
 int FreeObjs(char* a, char* b, char* c, char* d);
-int DoTranslate(char* errorMsg, size_t maxErrorLength, char* a, progtype* prog);
+int DoTranslate(char* errorMsg, size_t maxErrorLength, char* a, size_t aLen, progtype* prog);
 
 char operators[20] = "+-*/^";
 char numbers[20] = "0123456789.";
@@ -246,8 +246,14 @@ int VarNr(const char* s, progtype* prog) {
     int i;
 
     i = 0;
-    while (i < prog->vardef && strcmp(s, prog->varnames[i]) != 0) i++;
-    if (strcmp(s, prog->varnames[i]) == 0 && i < prog->vardef) return(i); else return(255);
+    while (i < prog->vardef && strcmp(s, prog->varnames[i]) != 0) {
+        i++;
+    }
+    if (strcmp(s, prog->varnames[i]) == 0 && i < prog->vardef) {
+        return(i);
+    } else {
+        return(255);
+    }
 }
 
 bool IsNumber(const char* s) {
@@ -380,7 +386,7 @@ int FreeObjs(char* a, char* b, char* c, char* d) {
     return 0;
 }
 
-int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, progtype* prog) {
+int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, size_t aLen, progtype* prog) {
     char* obj1, * obj2, * priori, * suba;
     unsigned int i, j;
     int k, sign;
@@ -408,13 +414,13 @@ int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, progtype* prog) {
         if ((bropen != -1) && (0 == brcount)) {
             strncpy_s(suba, tmpStrLen, a + bropen + 1, j - (bropen + 1));
             suba[j - (bropen + 1)] = 0;
-            error = DoTranslate(errorMsg, maxErrorLen, suba, prog);
+            error = DoTranslate(errorMsg, maxErrorLen, suba, tmpStrLen, prog);
             if (error != 0) {
                 FreeObjs(obj1, obj2, priori, suba);
                 return(error);
             }
             GetObjectBefore_s(obj1, tmpStrLen, a, bropen);
-            strncpy(a + bropen, suba, j - (bropen + 1));
+            strncpy_s(a + bropen, aLen - bropen, suba, j - (bropen + 1));
             memset(a + j - 1, ' ', 2);
             fct = IsFunction(obj1, prog);
             if (fct != -1) {
@@ -468,7 +474,7 @@ int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, progtype* prog) {
                     /* &(reg[regscount-1]); */
                 }
                 ocount++;
-                bropen -= strlen(obj1);
+                bropen -= static_cast<int>(strlen(obj1));
             }
             a[bropen] = suba[0];
             memset(a + bropen + 1, ' ', j - bropen);
@@ -508,7 +514,7 @@ int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, progtype* prog) {
                     } else prog->b[ocount] = &(prog->varvalues[VarNr(obj1, prog)]);
                     prog->a[ocount + 1] = &(reg[regscount]);
                     ocount++; regscount++;
-                    if (ocount > 75) {
+                    if (ocount > progtype::maxComplication) {
                         sprintf_s(errorMsg, maxErrorLen, "Formula too complex.");
                         FreeObjs(obj1, obj2, priori, suba);
                         return 1;
@@ -545,7 +551,7 @@ int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, progtype* prog) {
                     return 1;
                 } else memset(a + i - strlen(obj1) + 1, ' ', strlen(obj2) + strlen(obj1));
                 ocount++;
-                if (ocount > 75) {
+                if (ocount > progtype::maxComplication) {
                     sprintf_s(errorMsg, maxErrorLen, "Formula too complex."); FreeObjs(obj1, obj2, priori, suba);
                     return 1;
                 }
@@ -578,7 +584,7 @@ int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, progtype* prog) {
             FreeObjs(obj1, obj2, priori, suba);
             return 1;
         }
-        if (ocount > 75) {
+        if (ocount > progtype::maxComplication) {
             sprintf_s(errorMsg, maxErrorLen, "Formula too complex.");
             FreeObjs(obj1, obj2, priori, suba);
             return 1;
@@ -599,8 +605,7 @@ int Translate(char* errorMsg, size_t maxErrorLen, const char* aa, progtype* prog
     j = 0;
     for (i = 0; i < strlen(aa) && aa[i] != '#'; i++)
         if (aa[i] != ' ') {
-            /*if (aa[i]!='E')*/ a[j] = tolower((int)*(aa + i));
-            /*else a[j] = aa[i];*/
+            a[j] = tolower((int)*(aa + i));
             j++;
         }
     a[j] = 0;
@@ -619,7 +624,7 @@ int Translate(char* errorMsg, size_t maxErrorLen, const char* aa, progtype* prog
     }
     regscount = 0; 
     ocount = 0;
-    error = DoTranslate(errorMsg, maxErrorLen, a, prog);
+    error = DoTranslate(errorMsg, maxErrorLen, a, sizeof(a), prog);
     if (strlen(errorMsg) == 0) {
         sprintf_s(errorMsg, maxErrorLen, "Parsing OK");
     }

@@ -31,8 +31,12 @@
 void ColorClipboard::draw()
 {
 	draw_box();
-	fl_rectf(x()+2, y()+2, w()-4, h()-4,
-		static_cast<int>(_r*255.0), static_cast<int>(_g*255.0), static_cast<int>(_b*255.0));
+	fl_rectf(
+		x() + 2, y() + 2,
+		w() - 4, h() - 4,
+		static_cast<int>(_r * 255.0),
+		static_cast<int>(_g * 255.0),
+		static_cast<int>(_b * 255.0));
 }
 
 int ColorClipboard::handle(int event)

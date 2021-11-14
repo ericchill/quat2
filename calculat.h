@@ -12,14 +12,15 @@ struct function_decl
 };
 
 struct progtype
-{                                     
+{
+    static constexpr size_t maxComplication = 100;
    /* None of these members has to be referenced by the user, they are filled automatically */
    function_decl avail_functions[30];   /* pointers to defined functions (e.g. "sin") */
    int vardef, availfncount;            /* how many defined variables, and functions */
    char varnames[30][12];               /* names of defined variables (max 30, max 12 char.) */
    double varvalues[30];                /* here the values of the variables are stored */
-   funcptr func[80];                   /* 100 instructions (function calls) which a program consists of */
-   double *a[80], *b[80], z[80];     /* the data passed to the above functions */
+   funcptr func[maxComplication];                   /* 100 instructions (function calls) which a program consists of */
+   double *a[maxComplication], *b[maxComplication], z[maxComplication];     /* the data passed to the above functions */
 };
 
 /* Resets variables in program "prog" */

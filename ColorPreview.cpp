@@ -42,9 +42,8 @@ ColorPreview::ColorPreview(int x, int y, int w, int h, const char *label)
 	_state(0),
 	_idx(0)
 {
-	_pixmap = new unsigned char[3*(w-2*h)*h];
+	_pixmap = new unsigned char[3 * (w - 2 * h) * h];
 	_pal.reset();
-	_pal._nColors = 1; _pal._cols[0].weight = 1.0;
 }
 
 ColorPreview::~ColorPreview() {
@@ -55,7 +54,7 @@ void ColorPreview::draw() {
 	if (!_defined) {
 		draw_box();
 	}
-	int b = static_cast<int>(0.2*static_cast<double>(h()))+2;
+	int b = static_cast<int>(0.2 * static_cast<double>(h())) + 2;
 	int odd = 0;
 	if (h() % 2 == 0) {
 		odd++;
@@ -69,21 +68,21 @@ void ColorPreview::draw() {
 	if (_state & CP_RIGHT) {
 		bt = FL_DOWN_BOX;
 	}
-	fl_draw_box(bt, x()+w()-h(), y(), h(), h(), color());
+	fl_draw_box(bt, x() + w() - h(), y(), h(), h(), color());
 	fl_color(labelcolor());
-	fl_polygon(x()+b, y()+h()/2, x()+h()-b, y()+b+odd, x()+h()-b, y()+h()-b);
-	fl_polygon(x()+w()-b, y()+h()/2, x()+b+w()-h(), y()+b+odd, x()+b+w()-h(), y()+h()-b);
+	fl_polygon(x() + b, y() + h() / 2, x() + h() -b , y() + b + odd, x() + h() - b, y() + h() - b);
+	fl_polygon(x() + w() - b, y() + h() / 2, x() + b + w() - h(), y() + b + odd, x() + b + w() - h(), y() + h() - b);
 	fl_color(FL_BLACK);
 	if (_defined) {
-		fl_draw_image(_pixmap, x()+h(), y(), w()-2*h(), h());
+		fl_draw_image(_pixmap, x() + h(), y(), w() - 2 * h(), h());
 		fl_color(FL_BLACK);
-		fl_rect(x()+h()+_pos[_idx], y(), _pos[_idx+1]-_pos[_idx], h());
+		fl_rect(x() + h() + _pos[_idx], y(), _pos[_idx+1] - _pos[_idx], h());
 		fl_color(FL_WHITE);
-		fl_rect(x()+h()+_pos[_idx]+1, y()+1, _pos[_idx+1]-_pos[_idx]-2, h()-2);
+		fl_rect(x() + h() + _pos[_idx] + 1, y() + 1, _pos[_idx+1] - _pos[_idx] - 2, h() - 2);
 	} else {
 		static char tmp[100];
 		sprintf_s(tmp, sizeof(tmp), "%s%zi", "A weight is zero! Current color range: ", _idx+1);
-		fl_draw(tmp, x()+h()+5, y()+14);
+		fl_draw(tmp, x() + h() + 5, y() + 14);
 	}
 	return;
 }
@@ -97,16 +96,17 @@ int ColorPreview::handle(int event)
 	case FL_LEAVE:
 	    return 1;
 	case (FL_PUSH):
-	    if (Fl::event_button() == 1) {
-		    int mx = Fl::event_x(); int my = Fl::event_y();
-		    if (x()<mx && mx<x()+h() && y()<my && my<y()+h()) {
+	    if (FL_LEFT_MOUSE == Fl::event_button()) {
+		    int mx = Fl::event_x();
+			int my = Fl::event_y();
+		    if (x() < mx && mx < x() + h() && y() < my && my < y() + h()) {
 			    _state |= CP_LEFT;
 				if (_idx > 0) {
 					_idx--;
 				}
 			}
 		    else _state &= ~CP_LEFT;
-		    if (x()+w()-h()<mx && mx<x()+w() && y()<my && my<y()+h()) {
+		    if (x() + w() - h() < mx && mx < x() + w() && y() < my && my < y() + h()) {
 			    _state |= CP_RIGHT;
 				if (_idx < _pal._nColors - 1) {
 					_idx++;
@@ -114,8 +114,8 @@ int ColorPreview::handle(int event)
 			} else {
 				_state &= ~CP_RIGHT;
 			}
-		    if (_defined && x()+h()<mx && mx<x()+w()-h() && y()<my && my<y()+h()) {
-			    for (_idx=0; _idx<_pal._nColors && _pos[_idx+1]<mx-x()-h(); _idx++);
+		    if (_defined && x() + h() < mx && mx <x () + w() - h() && y() < my && my < y() + h()) {
+			    for (_idx =0 ; _idx  <_pal._nColors && _pos[_idx+1] < mx - x() - h(); _idx++);
 			    redraw();
 			}
 		}
@@ -127,7 +127,7 @@ int ColorPreview::handle(int event)
 		}
 	    return 1;
 	case (FL_RELEASE):
-	    if (Fl::event_button() == 1) {
+	    if (FL_LEFT_MOUSE == Fl::event_button()) {
 		    _state &= ~(CP_LEFT | CP_RIGHT);
 		}
 		if (oldstate != _state) {
@@ -141,18 +141,18 @@ int ColorPreview::handle(int event)
 
 void ColorPreview::add()
 {
-    if (_pal._nColors>=29) return;
+	if (_pal._nColors >= RealPalette::maxColors) {
+		return;
+	}
     _pal._nColors++;
-	if (_pal._nColors == 29) {
+	if (_pal._nColors == RealPalette::maxColors) {
 		_button_add->deactivate();
 	} else {
 		_button_add->activate();
 	}
     _button_del->activate();
-    for (size_t i = _pal._nColors; i > _idx; i--) {
-	    _pal._cols[i] = _pal._cols[i-1];
-//		_pal.cols[i].weight = _pal.cols[i-1].weight;
-//		_pal.cols[i]
+	for (size_t i = _pal._nColors; i > _idx; i--) {
+		_pal._cols[i] = _pal._cols[i - 1];
 	}
 	if (_idx > 0) {
 		for (int i = 0; i < 3; ++i) {

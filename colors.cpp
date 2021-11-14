@@ -57,6 +57,67 @@ int DimAndGammaTrueColor(double RR, double GG, double BB,
 }
 
 
+col_struct::col_struct(const json::value jv) {
+    const json::object obj = jv.as_object();
+    weight = obj.at("weight").to_number<double>();
+    const json::array& col1arr = obj.at("col1").as_array();
+    for (size_t i = 0; i < 3; i++) {
+        col1[i] = col1arr.at(i).to_number<double>();
+    }
+    const json::array& col2arr = obj.at("col2").as_array();
+    for (size_t i = 0; i < 3; i++) {
+        col2[i] = col2arr.at(i).to_number<double>();
+    }
+
+}
+json::value col_struct::toJSON() const {
+    return {
+        { "weight", weight },
+        { "col1", { col1[0], col1[1], col1[2] }},
+        { "col2", { col2[0], col2[1], col2[2] }}
+    };
+}
+
+
+RealPalette::RealPalette(const RealPalette& r) {
+    for (size_t i = 0; i < r._nColors; i++) {
+        _cols[i] = r._cols[i];
+    }
+    _nColors = r._nColors;
+}
+
+void RealPalette::reset() {
+    _cols[0].col1[0] = 0;
+    _cols[0].col1[1] = 0;
+    _cols[0].col1[2] = 1;
+    _cols[0].col2[0] = 1;
+    _cols[0].col2[1] = 0;
+    _cols[0].col2[2] = 0;
+    _cols[0].weight = 1;
+    _nColors = 1;
+}
+
+RealPalette::RealPalette(const json::value& jv) {
+    json::array colors = jv.as_object().at("colors").as_array();
+    for (size_t i = 0; i < colors.size(); i++) {
+        _cols[i] = col_struct(colors.at(i));
+    }
+    _nColors = colors.size();
+
+}
+json::value RealPalette::toJSON() const {
+    json::array colors;
+    for (size_t i = 0; i < _nColors; i++) {
+        colors.push_back(_cols[i].toJSON());
+    }
+    return { { "colors", colors } };
+
+}
+
+RealPalette tag_invoke(const json::value_to_tag< RealPalette >&, json::value const& jv) {
+    return RealPalette(jv);
+}
+
 double RealPalette::computeWeightSum() {
     _weightSum = 0;
     for (size_t i = 0; i < _nColors; i++) {
@@ -69,12 +130,11 @@ void RealPalette::GetTrueColor(
     double color,
     double* r, double* g, double* b) {
     int i;
-    double nc;
-
-    nc = 0;
+ 
     if (color == 1) {
         color -= 0.000000000001;
     }
+    double nc = 0;
     for (i = 0; (nc < color) && (i < _nColors); i++) {
         nc += _cols[i].weight / _weightSum;
     }
