@@ -44,13 +44,13 @@ public:
     LexicallyScopedPtr(T* ptr) : _ptr(ptr) {}
     ~LexicallyScopedPtr() {
         if (nullptr != _ptr) {
-            delete[] _ptr;
+            delete _ptr;
             _ptr = nullptr;
         }
     }
     T* operator=(T* ptr) {
         if (nullptr != _ptr) {
-            delete[] _ptr;
+            delete _ptr;
         }
         _ptr = ptr;
         return _ptr;
@@ -60,10 +60,10 @@ public:
         return &*_ptr;
     }
     const T* ptr() const {
-        return _mem;
+        return _ptr;
     }
     T* ptr() {
-        return _mem;
+        return _ptr;
     }
 };
 

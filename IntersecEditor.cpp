@@ -86,8 +86,9 @@ void IntersecEditor::cb_pj(Fl_Value_Input* o, void* v) {
 }
 
 void IntersecEditor::cb_add_i(Fl_Button*, void*) {
-    _cuts.setPlane(_idx, _curNormal, _curPoint);
+    _cuts.addPlane(_curNormal, _curPoint);
     _num = _cuts.count();
+    _idx = _num - 1;
     scroll->value(static_cast<int>(_num) - 1, 1, 0, static_cast<int>(_num));
     setno(_num - 1);
 }
@@ -108,8 +109,8 @@ void IntersecEditor::cb_del(Fl_Button* o, void* v) {
 
 void IntersecEditor::cb_To_i(Fl_Button* o, void*) {
     //double x = o->value();
-    //_curPoint = vec3(x, x, x);
-    _curNormal = (_view->_s - _curPoint).normalize();
+    //_curPoint = Vec3(x, x, x);
+    _curNormal = (_view->_s - _curPoint).normalized();
     showVectors();
     _cuts.setPlane(_idx, _curNormal, _curPoint);
     checkValidity();

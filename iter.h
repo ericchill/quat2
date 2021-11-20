@@ -30,7 +30,7 @@ int iterate_0(iter_struct*);
    /*                 the orbit */
 int iterate_0_no_orbit(iter_struct*);
 
-int iternorm_0(iter_struct* is, vec3& norm);
+int iternorm_0(iter_struct* is, Vec3& norm);
    /* formula: x[n+1] = x[n]^2 - c */
    /* iterates a point and calculates the normal vector "norm" at this point */
    /* parameters same as "iterate_0" */
@@ -47,7 +47,7 @@ int iterate_1(iter_struct*);
    /* fills in orbit: array of points (MUST hold up to maxiter points!) that make */
    /*                 the orbit */
 int iterate_1_no_orbit(iter_struct*);
-int iternorm_1(iter_struct*, vec3& norm);
+int iternorm_1(iter_struct*, Vec3& norm);
 int iterate_2(iter_struct*);
 int iterate_3(iter_struct*);
 int iterate_3_no_orbit(iter_struct*);

@@ -80,7 +80,7 @@ public:
     void checkValidity();
 private:
     size_t _num, _idx;
-    vec3 _curNormal, _curPoint;
+    Vec3 _curNormal, _curPoint;
     void showVectors();
 public:
     void deactiv();

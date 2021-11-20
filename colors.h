@@ -46,7 +46,7 @@ private:
 
     double _weightSum;
 
-    void GetTrueColor(double color, double* r, double* g, double* b);
+    void getTrueColor(double color, double* r, double* g, double* b);
 };
 
 RealPalette tag_invoke(const json::value_to_tag< RealPalette >&, json::value const& jv);

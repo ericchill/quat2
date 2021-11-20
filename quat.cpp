@@ -67,7 +67,7 @@ int LBuf_ZBuf(
     long aa_line,
     int offs);
 
-struct progtype prog;
+progtype prog;
 
 time_t calc_time;
 
@@ -96,54 +96,53 @@ char orbitl(double* a, const double* b) {
     return orbitComponent(a, b, 3);
 }
 
-int TranslateColorFormula(const char* colscheme, char* ErrorMSG, size_t maxErrorLen) {
-
+int TranslateColorFormula(const char* colscheme, char* errorMSG, size_t maxErrorLen) {
     unsigned char dummy;
     double ddummy;
 
-    InitProg(&prog);
-    DeclareFunction("orbite", orbite, &prog);
-    DeclareFunction("orbitj", orbitj, &prog);
-    DeclareFunction("orbitk", orbitk, &prog);
-    DeclareFunction("orbitl", orbitl, &prog);
+    prog.reset();
+    prog.declareFunction("orbite", orbite);
+    prog.declareFunction("orbitj", orbitj);
+    prog.declareFunction("orbitk", orbitk);
+    prog.declareFunction("orbitl", orbitl);
 
     ddummy = 0;
 
-    dummy = 255; SetVariable("maxiter", &dummy, ddummy, &prog);
-    dummy = 255; SetVariable("lastiter", &dummy, ddummy, &prog);
+    dummy = 255; prog.setVariable("maxiter", &dummy, ddummy);
+    dummy = 255; prog.setVariable("lastiter", &dummy, ddummy);
 
-    dummy = 255; SetVariable("x", &dummy, ddummy, &prog);
-    dummy = 255; SetVariable("y", &dummy, ddummy, &prog);
-    dummy = 255; SetVariable("z", &dummy, ddummy, &prog);
-    dummy = 255; SetVariable("w", &dummy, ddummy, &prog);
+    dummy = 255; prog.setVariable("x", &dummy, ddummy);
+    dummy = 255; prog.setVariable("y", &dummy, ddummy);
+    dummy = 255; prog.setVariable("z", &dummy, ddummy);
+    dummy = 255; prog.setVariable("w", &dummy, ddummy);
 
-    dummy = 255; SetVariable("xb", &dummy, ddummy, &prog);
-    dummy = 255; SetVariable("yb", &dummy, ddummy, &prog);
-    dummy = 255; SetVariable("zb", &dummy, ddummy, &prog);
-    dummy = 255; SetVariable("wb", &dummy, ddummy, &prog);
+    dummy = 255; prog.setVariable("xb", &dummy, ddummy);
+    dummy = 255; prog.setVariable("yb", &dummy, ddummy);
+    dummy = 255; prog.setVariable("zb", &dummy, ddummy);
+    dummy = 255; prog.setVariable("wb", &dummy, ddummy);
 
-    /*  SetVariable("diffr", &dummy, ddummy, &prog); */
-    /*  SetVariable("eorbit", &dummy, ddummy, &prog);
-    SetVariable("jorbit", &dummy, ddummy, &prog);
-    SetVariable("korbit", &dummy, ddummy, &prog);
-    SetVariable("lorbit", &dummy, ddummy, &prog);
-    SetVariable("closestit", &dummy, ddummy, &prog); */
+    /*  prog.setVariable("diffr", &dummy, ddummy); */
+    /*  prog.setVariable("eorbit", &dummy, ddummy);
+    prog.setVariable("jorbit", &dummy, ddummy);
+    prog.setVariable("korbit", &dummy, ddummy);
+    prog.setVariable("lorbit", &dummy, ddummy);
+    prog.setVariable("closestit", &dummy, ddummy); */
 
-    dummy = 255; SetVariable("pi", &dummy, M_PI, &prog);
+    dummy = 255; prog.setVariable("pi", &dummy, M_PI);
 
-    return (Translate(ErrorMSG, maxErrorLen, colscheme, &prog) != 0) ? -1 : 0;
+    return prog.compile(errorMSG, maxErrorLen, colscheme) != 0 ? -1 : 0;
 }
 
-int FormatExternToIntern(FractalSpec& spec, FractalView& view) {
+int formatExternToIntern(FractalSpec& spec, FractalView& view) {
     /* This is to change the input format to internal format */
     /* Input: light relative to viewers position (for convenience of user) */
     /* Internal: light absolute in space (for convenience of programmer) */
-    base_struct base;
+    ViewBasis base;
 
     if (view.calcbase(&base, NULL, WhichEye::Monocular) != 0) {
         return -1;
     }
-    vec3 ltmp = view._light[0] * base._x + view._light[1] * base._y + view._light[2] * base._z;
+    Vec3 ltmp = view._light[0] * base._x + view._light[1] * base._y + view._light[2] * base._z;
     view._light = view._s + view._Mov[0] * base._x + view._Mov[1] * base._y;
     /* bailout */
     /* Input: real bailout value */
@@ -152,16 +151,16 @@ int FormatExternToIntern(FractalSpec& spec, FractalView& view) {
     return 0;
 }
 
-int FormatInternToExtern(FractalSpec& frac, FractalView& view) {
-    /* Reverse process of "FormatExternToIntern". see above */
-    base_struct base;
+int formatInternToExtern(FractalSpec& frac, FractalView& view) {
+    /* Reverse process of "formatExternToIntern". see above */
+    ViewBasis base;
 
     if (view.calcbase(&base, NULL, WhichEye::Monocular) != 0) {
         return -1;
     }
     frac._bailout = sqrt(frac._bailout);
-    vec3 ltmp = view._light - view._s;
-    view._light = vec3(
+    Vec3 ltmp = view._light - view._s;
+    view._light = Vec3(
         ltmp.dot(base._x) - view._Mov[0],
         ltmp.dot(base._y) - view._Mov[1],
         ltmp.dot(base._z));
@@ -198,13 +197,13 @@ int InitGraphics(
     return 0;
 }
 
-void AllocBufs(
+void allocBufs(
     FractalView& v,
     ZFlag zflag, 
-    LexicallyScopedPtr<float>& CBuf,
-    LexicallyScopedPtr<float>& BBuf,
-    LexicallyScopedPtr<double>& LBufR,
-    LexicallyScopedPtr<double>& LBufL,
+    LexicallyScopedPtr<float>& cBuf,
+    LexicallyScopedPtr<float>& bBuf,
+    LexicallyScopedPtr<double>& lBufR,
+    LexicallyScopedPtr<double>& lBufL,
     LexicallyScopedPtr<unsigned char>& line,
     LexicallyScopedPtr<unsigned char>& line2,
     LexicallyScopedPtr<unsigned char>& line3)
@@ -212,35 +211,35 @@ void AllocBufs(
     /* pal ... whether palette or not */
 {
     unsigned int st = v.isStereo() ? 2 : 1;
-    size_t LBufSize = v._xres * v._antialiasing * (v._antialiasing + 1L) + 10;
+    size_t lBufSize = v._xres * v._antialiasing * (v._antialiasing + 1L) + 10;
     switch (zflag) {
     case ZFlag::NewImage:   /* create an image without ZBuffer */
-        LBufR = new double[LBufSize]();
+        lBufR = new double[lBufSize]();
         line = new unsigned char[3 * v._xres * st + 1 + 10]();
-        CBuf = new float[v._xres * st + 10]();
-        BBuf = new float[v._xres * st + 10]();
+        cBuf = new float[v._xres * st + 10]();
+        bBuf = new float[v._xres * st + 10]();
         if (st == 2) {
-            LBufL = new double[LBufSize + 10]();
+            lBufL = new double[lBufSize + 10]();
         }
         break;
     case ZFlag::NewZBuffer:   /* create a ZBuffer only */
-        /* LBufR and LBufL each hold aa lines (mono) */
-        LBufR = new double[LBufSize + 10]();
+        /* lBufR and lBufL each hold aa lines (mono) */
+        lBufR = new double[lBufSize + 10]();
         /* line only holds a single stereo line for transferring of
-           LBuf->global ZBuffer */
+           lBuf->global ZBuffer */
         line = new unsigned char[3 * v._xres * v._antialiasing * st + 1 + 10]();
         if (st == 2) {
-            LBufL = new double[LBufSize + 10]();
+            lBufL = new double[lBufSize + 10]();
         }
         break;
     case ZFlag::ImageFromZBuffer:   /* create an image using a ZBuffer */
-        LBufR = new double[LBufSize + 10]();
+        lBufR = new double[lBufSize + 10]();
         line = new unsigned char[3 * v._xres * st + 1 + 10]();
-        CBuf = new float[v._xres * st + 10]();
-        BBuf = new float[v._xres * st + 10]();
+        cBuf = new float[v._xres * st + 10]();
+        bBuf = new float[v._xres * st + 10]();
         line3 = new unsigned char[3 * v._xres * v._antialiasing * st + 1 + 10]();
         if (st == 2) {
-            LBufL = new double[LBufSize]();
+            lBufL = new double[lBufSize]();
         }
         break;
     }
@@ -248,7 +247,7 @@ void AllocBufs(
 
 int LBuf_ZBuf(
     FractalView& v,
-    double* LBuf,
+    double* lBuf,
     unsigned char* line,
     long ii,
     long imax,
@@ -260,7 +259,7 @@ int LBuf_ZBuf(
     for (int k = 0; k < v._antialiasing; k++) {
         for (int i = ii; i <= imax; i++) {
             tmp = i * v._antialiasing + k + offs;
-            l = static_cast<long>(floor(LBuf[(i + aa_line * v._xres) * v._antialiasing + k] * 100 + 0.5));;
+            l = static_cast<long>(floor(lBuf[(i + aa_line * v._xres) * v._antialiasing + k] * 100 + 0.5));;
             line[tmp * 3 + 1] = (unsigned char)(l >> 16 & 0xFF);
             line[tmp * 3 + 2] = (unsigned char)(l >> 8 & 0xFF);
             line[tmp * 3 + 3] = (unsigned char)(l & 0xFF);
@@ -297,7 +296,7 @@ int CalculateFractalLine(
             imax = fractal.view()._xres - 1;
         }
 
-        calc.calcline(ii, imax, iy, lbuf, bbuf, cbuf, zflag);  // right eye or monocular
+        calc.calcline2(ii, imax, iy, lbuf, bbuf, cbuf, zflag);  // right eye or monocular
 
         /* image to calculate */
         if (shouldCalculateImage(zflag) && !firstLine) {
@@ -338,10 +337,10 @@ int CalculateFractal(
     int* xstart,
     int* ystart,
     int pixelsPerCheck,
-    base_struct* rbase,
-    base_struct* srbase,
-    base_struct* lbase,
-    base_struct* slbase,
+    ViewBasis* rbase,
+    ViewBasis* srbase,
+    ViewBasis* lbase,
+    ViewBasis* slbase,
     FractalPreferences& fractal,
     LinePutter& lineDst)
     /* pngfile: string of filename, without path (only for title bar) */
@@ -357,21 +356,29 @@ int CalculateFractal(
           2..image from ZBuffer, size img: xres*yres, buffer *AA^2
           for every case take into account that images can be stereo! */
 {
-    LexicallyScopedPtr<double> LBufR;
-    LexicallyScopedPtr<double> LBufL;
-    LexicallyScopedPtr<float> CBuf;
-    LexicallyScopedPtr<float> BBuf;
+    LexicallyScopedPtr<double> lBufR;
+    LexicallyScopedPtr<double> lBufL;
+    LexicallyScopedPtr<float> cBuf;
+    LexicallyScopedPtr<float> bBuf;
     LexicallyScopedPtr<unsigned char> line;
     LexicallyScopedPtr<unsigned char> line2;
     LexicallyScopedPtr<unsigned char> line3;
-    calc_struct cr, cl;
+
+    FractalSpec frac = fractal.fractal();
+    FractalView view = fractal.view();
+    if (formatExternToIntern(frac, view) != 0) {
+        sprintf_s(Error, maxErrorLen, "Error in view struct!");
+        return -1;
+    }
+
+    calc_struct cr(frac, view, fractal.cuts(), *rbase, *srbase, zflag);
+    calc_struct cl(frac, view, fractal.cuts(), *lbase, *slbase, zflag);
     char MSG[300];
 
+#define USE_GPU
 #ifdef USE_GPU
-    pixelsPerCheck = 100;
+    pixelsPerCheck = view._xres;
 #endif
-    FractalSpec frac = fractal.fractal(); 
-    FractalView view = fractal.view();
 
     long xres_st = view._xres;
     long xres_aa = view._xres * view._antialiasing;
@@ -381,80 +388,14 @@ int CalculateFractal(
         xres_st_aa *= 2;
     }
 
-    if (FormatExternToIntern(frac, view) != 0) {
-        sprintf_s(Error, maxErrorLen, "Error in view struct!");
-        return -1;
-    }
-
     if (nullptr != GlobalOrbit) {
         delete[] GlobalOrbit;
     }
     GlobalOrbit = new Quat[frac._maxiter + 2]();
     /* "+2", because orbit[0] is special flag for orbite,iy,k,l */
-    AllocBufs(view, zflag, CBuf, BBuf, LBufR, LBufL, line, line2, line3);
+    allocBufs(view, zflag, cBuf, bBuf, lBufR, lBufL, line, line2, line3);
 
     time_t my_time = time(NULL);
-
-    switch (frac._formula) {
-    case 0:
-        cr.iterate_no_orbit = iterate_0_no_orbit; cr.iterate = iterate_0; cr.iternorm = iternorm_0;
-        cl.iterate_no_orbit = iterate_0_no_orbit; cl.iterate = iterate_0; cl.iternorm = iternorm_0;
-        break;
-    case 1:
-        cr.iterate_no_orbit = iterate_1_no_orbit; cr.iterate = iterate_1; cr.iternorm = iternorm_1;
-        cl.iterate_no_orbit = iterate_1_no_orbit; cl.iterate = iterate_1; cl.iternorm = iternorm_1;
-        break;
-    case 2:
-        cr.iterate_no_orbit = cr.iterate = iterate_2; cr.iternorm = 0;
-        cl.iterate_no_orbit = cl.iterate = iterate_2; cl.iternorm = 0;
-        break;
-    case 3:
-        cr.iterate_no_orbit = iterate_3_no_orbit; cr.iterate = iterate_3; cr.iternorm = 0;
-        cl.iterate_no_orbit = iterate_3_no_orbit; cl.iterate = iterate_3; cl.iternorm = 0;
-        break;
-    case 4:
-        cr.iterate_no_orbit = cr.iterate = iterate_4; cr.iternorm = 0;
-        cl.iterate_no_orbit = cl.iterate = iterate_4; cl.iternorm = 0;
-        break;
-    case 5:
-        cr.iterate_no_orbit = cr.iterate = iterate_bulb; cr.iternorm = 0;
-        cl.iterate_no_orbit = cl.iterate = iterate_bulb; cl.iternorm = 0;
-        break;
-    default:
-        assert(1 == 0);
-    }
-
-    /* Initialize variables for calcline (those which don´t change from
-       line to line) */
-    cr.v = view; 
-    cr.f = frac;
-    cr.sbase = *srbase; 
-    cr.base = *rbase;
-    cr.cuts = fractal.cuts();
-    cr.absx = cr.sbase._x.magnitude() / cr.v._antialiasing;
-    cr.absy = cr.sbase._y.magnitude() / cr.v._antialiasing;
-    cr.absz = cr.sbase._z.magnitude();
-    cr.aabase = cr.sbase;
-
-    if (shouldCalculateDepths(zflag) && cr.v._antialiasing > 1) {
-        cr.aabase._x /= cr.v._antialiasing;
-        cr.aabase._y /= cr.v._antialiasing;
-    }
-
-    if (view.isStereo()) {
-        cl.v = view; cl.f = frac;
-        cl.sbase = *slbase;
-        cl.base = *lbase;
-        cl.cuts = fractal.cuts();
-        cl.absx = cl.sbase._x.magnitude() / cl.v._antialiasing;
-        cl.absy = cl.sbase._y.magnitude() / cl.v._antialiasing;
-        cl.absz = cl.sbase._z.magnitude();
-        cl.aabase = cl.sbase;
-        if (shouldCalculateDepths(zflag) && cl.v._antialiasing > 1) {
-            cl.aabase._x /= cl.v._antialiasing;
-            cl.aabase._y /= cl.v._antialiasing;
-        }
-    }
 
     /* recalculate last line when resuming an image without ZBuffer */
     bool firstLine = false;
@@ -467,19 +408,19 @@ int CalculateFractal(
  
     for (int iy = *ystart; iy < view._yres; iy++) {
         /* Initialize variables for calcline (which change from line to line) */
-        cr.xp = srbase->_O + iy * srbase->_y;
-        cr.xp[3] = frac._lvalue;
-        cr.xs[3] = frac._lvalue;
+        cr._xp = srbase->_O + iy * srbase->_y;
+        cr._xp[3] = frac._lTerm;
+        cr._xs[3] = frac._lTerm;
         if (view.isStereo()) {
-            cl.xp = slbase->_O + iy * slbase->_y;
-            cl.xp[3] = frac._lvalue;
-            cl.xs[3] = frac._lvalue;
+            cl._xp = slbase->_O + iy * slbase->_y;
+            cl._xp[3] = frac._lTerm;
+            cl._xs[3] = frac._lTerm;
         }
 
         /* Initialize LBufs from ZBuffer */
-        memcpy(&LBufR[0], &LBufR[view._antialiasing * xres_aa], xres_aa * sizeof(LBufR[0]));
+        memcpy(&lBufR[0], &lBufR[view._antialiasing * xres_aa], xres_aa * sizeof(lBufR[0]));
         if (view.isStereo()) {
-            memcpy(&LBufL[0], &LBufL[view._antialiasing * xres_aa], xres_aa * sizeof(LBufL[0]));
+            memcpy(&lBufL[0], &lBufL[view._antialiasing * xres_aa], xres_aa * sizeof(lBufL[0]));
         }
 
         if (ZFlag::ImageFromZBuffer == zflag) {
@@ -487,15 +428,15 @@ int CalculateFractal(
                 if (iy + ii > 0) {  /* this doesn´t work for the 1st line */
                     QU_getline(line3, iy * view._antialiasing + ii - 1, xres_st_aa, ZFlag::NewZBuffer);
                     for (int i = 0; i < xres_aa; i++) {
-                        LBufR[i + ii * xres_aa] = static_cast<double>(threeBytesToLong(&line[i * 3])) / 100.0;
+                        lBufR[i + ii * xres_aa] = static_cast<double>(threeBytesToLong(&line[i * 3])) / 100.0;
                         if (view.isStereo()) {
-                            LBufL[i + ii * xres_aa] = static_cast<double>(threeBytesToLong(&line3[(i + xres_aa) * 3])) / 100.0;
+                            lBufL[i + ii * xres_aa] = static_cast<double>(threeBytesToLong(&line3[(i + xres_aa) * 3])) / 100.0;
                         }
                     }
                 } else {
-                    fillArray<double>(LBufR, xres_aa, static_cast<double>(view._zres));
+                    fillArray<double>(lBufR, xres_aa, static_cast<double>(view._zres));
                     if (view.isStereo()) {
-                        fillArray<double>(LBufL, xres_aa, static_cast<double>(view._zres));
+                        fillArray<double>(lBufL, xres_aa, static_cast<double>(view._zres));
                     }
                 }
             }
@@ -504,27 +445,27 @@ int CalculateFractal(
             long imax = ii + pixelsPerCheck - 1;
             imax = std::min<long>(imax, view._xres - 1);
 
-            cr.calcline(ii, imax, iy, LBufR, BBuf, CBuf, zflag);  // right eye or monocular
+            cr.calcline2(ii, imax, iy, lBufR, bBuf, cBuf, zflag);  // right eye or monocular
 
             /* image to calculate */
             if (shouldCalculateImage(zflag) && !firstLine) {
-                fractal.realPalette().pixelValue(ii, imax, 255, 255, 255,  &line[1], CBuf, BBuf);
+                fractal.realPalette().pixelValue(ii, imax, 255, 255, 255,  &line[1], cBuf, bBuf);
             }
             if (view.isStereo()) {
-                cl.calcline(ii, imax, iy, LBufL, &BBuf[view._xres], &CBuf[view._xres], zflag);   /* left eye image */
+                cl.calcline(ii, imax, iy, lBufL, &bBuf[view._xres], &cBuf[view._xres], zflag);   /* left eye image */
                /* image to calculate */
                 if (shouldCalculateImage(zflag) && !firstLine) {
                     fractal.realPalette().pixelValue(
                         ii, imax, 255, 255, 255,
                         &line[3 * view._xres + 1],
-                        &CBuf[view._xres],
-                        &BBuf[view._xres]);
+                        &cBuf[view._xres],
+                        &bBuf[view._xres]);
                 }
             }
             /* Display and Transfer */
             if (ZFlag::NewZBuffer == zflag) {
                 for (int kk = 1; kk < view._antialiasing + 1; kk++) {
-                    LBuf_ZBuf(view, LBufR, line, ii, imax, kk, 0);
+                    LBuf_ZBuf(view, lBufR, line, ii, imax, kk, 0);
                     lineDst.putLine(ii * view._antialiasing,
                         (imax + 1) * view._antialiasing - 1,
                         xres_st_aa,
@@ -534,7 +475,7 @@ int CalculateFractal(
                 }
                 if (view.isStereo()) {
                     for (int kk = 1; kk < view._antialiasing + 1; kk++) {
-                        LBuf_ZBuf(view, LBufL, line, ii, imax, kk, xres_aa);
+                        LBuf_ZBuf(view, lBufL, line, ii, imax, kk, xres_aa);
                         lineDst.putLine(ii * view._antialiasing + xres_aa,
                             (imax + 1) * view._antialiasing - 1 + xres_aa,
                             xres_st_aa,
@@ -580,27 +521,27 @@ int CalculateFractal(
             case ZFlag::NewImage:
                 if (!firstLine) {
                     line[0] = '\0';       /* Set filter method */
-                    png_internal->DoFiltering(line);
-                    png_internal->WritePNGLine(line);
+                    png_internal->doFiltering(line);
+                    png_internal->writePNGLine(line);
                 }
                 break;
             case ZFlag::NewZBuffer:
                 if (!firstLine) {
                     for (int kk = 1; kk < view._antialiasing + 1; kk++) {
-                        LBuf_ZBuf(view, LBufR, line, 0, view._xres - 1, kk, 0);
+                        LBuf_ZBuf(view, lBufR, line, 0, view._xres - 1, kk, 0);
                         if (view.isStereo()) {
-                            LBuf_ZBuf(view, LBufL, line, 0, view._xres - 1, kk, xres_aa);
+                            LBuf_ZBuf(view, lBufL, line, 0, view._xres - 1, kk, xres_aa);
                         }
                     }
                     line[0] = '\0';
-                    png_internal->DoFiltering(line);
-                    png_internal->WritePNGLine(line);
+                    png_internal->doFiltering(line);
+                    png_internal->writePNGLine(line);
                 }
                 break;
             case ZFlag::ImageFromZBuffer:
                 line[0] = '\0';      /* Set filter method */
-                png_internal->DoFiltering(line);
-                png_internal->WritePNGLine(line);
+                png_internal->doFiltering(line);
+                png_internal->writePNGLine(line);
             }
         }
         firstLine = false;
@@ -635,7 +576,7 @@ int CreateImage(
     /* Creates/Continues image from given parameters.
        Wants external format of frac & view */
 {
-    base_struct rbase, srbase, lbase, slbase, cbase;
+    ViewBasis rbase, srbase, lbase, slbase, cbase;
     int xadd, yadd;
     char ErrorMSG[256];
 
@@ -683,7 +624,7 @@ int CreateImage(
 int CreateZBuf(char* Error, size_t maxErrorLen, int* xstart, int* ystart, FractalPreferences& fractal, int pixelsPerCheck, LinePutter& lineDst)
     /* Creates/Continues ZBuffer from given parameters. Wants external format of frac & view */
 {
-    base_struct rbase, srbase, lbase, slbase, cbase;
+    ViewBasis rbase, srbase, lbase, slbase, cbase;
     RealPalette realpal;
     int xadd, yadd;
     int i;

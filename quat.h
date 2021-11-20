@@ -18,8 +18,8 @@ void DUMMY_eol(int line);
 
 int ParseAndCalculate(const char* file, char* Error, char zflag);
 int TranslateColorFormula(const char* colscheme, char* ErrorMSG, size_t maxErrorLen);
-int FormatExternToIntern(FractalSpec& frac, FractalView& view);
-int FormatInternToExtern(FractalSpec& frac, FractalView& view);
+int formatExternToIntern(FractalSpec& frac, FractalView& view);
+int formatInternToExtern(FractalSpec& frac, FractalView& view);
 
 class LinePutter {
 public:
@@ -81,10 +81,10 @@ int CalculateFractal(
     int* xstart, int* ystart,
     /* int xadd, int yadd, */
     int noev,
-    base_struct* rbase,
-    base_struct* srbase,
-    base_struct* lbase,
-    base_struct* slbase,
+    ViewBasis* rbase,
+    ViewBasis* srbase,
+    ViewBasis* lbase,
+    ViewBasis* slbase,
     FractalPreferences& fractal,
     LinePutter& lineDst);
 

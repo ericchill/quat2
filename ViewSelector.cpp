@@ -103,7 +103,7 @@ void ViewSelector::Init(int s_x, int s_y, int s_dx, int s_dy)
 
 void ViewSelector::calculateCoords()
 {
-	base_struct base, sbase;
+	ViewBasis base, sbase;
 	int pre = 0, pi = 0, pj = 0;
 	int plane_x[4] = { 0, 0, 0, 0}, plane_y[4] = { 0, 0, 0, 0};
 	int posx = 0, posy = 0, arrowadd = 0;

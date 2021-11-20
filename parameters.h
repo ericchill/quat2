@@ -28,29 +28,29 @@ inline bool shouldCalculateImage(ZFlag zflag) {
 }
 
 
-class base_struct : public JSONSerializable {
+class ViewBasis : public JSONSerializable {
 public:
 
-    vec3 _O, _x, _y, _z;
+    Vec3 _O, _x, _y, _z;
 
     /* origin and 3 base vectors */
-    base_struct() {
+    ViewBasis() {
         _O = { 0, 0, 0 };
         _x = { 1, 0, 0 };
         _y = { 0, 1, 0 };
         _z = { 0, 0, 1 };
     }
-    base_struct(const vec3& O, const vec3& x, const vec3& y, const vec3& z) {
+    ViewBasis(const Vec3& O, const Vec3& x, const Vec3& y, const Vec3& z) {
         _O = O;
         _x = x;
         _y = y;
         _z = z;
     }
-    base_struct(json::value const& jv);
+    ViewBasis(json::value const& jv);
     virtual json::value toJSON() const;
 };
 
-base_struct tag_invoke(const json::value_to_tag< base_struct >&, json::value const& jv);
+ViewBasis tag_invoke(const json::value_to_tag< ViewBasis >&, json::value const& jv);
 
 
 class FractalSpec : public JSONSerializable {
@@ -63,7 +63,7 @@ public:
         _bailout = f._bailout;
         _maxiter = f._maxiter;
         _lastiter = f._lastiter;
-        _lvalue = f._lvalue;
+        _lTerm = f._lTerm;
         _formula = f._formula;
         for (size_t i = 0; i < numPowers; i++) {
             _p[i] = f._p[i];
@@ -79,7 +79,7 @@ public:
         _c = c;
         _bailout = bailout;
         _maxiter = maxiter;
-        _lvalue = lvalue;
+        _lTerm = lvalue;
         _formula = formula;
         for (size_t i = 0; i < numPowers; i++) {
             _p[i] = p[i];
@@ -94,7 +94,7 @@ public:
         _c = json::value_to<Quaternion<double> >(obj.at("c"));
         _bailout = obj.at("bailout").to_number<double>();
         _maxiter = obj.at("maxiter").to_number<int>();
-        _lvalue = obj.at("lvalue").to_number<double>();
+        _lTerm = obj.at("lvalue").to_number<double>();
         _formula = obj.at("formula").to_number<int>();
         _p[0] = json::value_to<Quat>(obj.at("p1"));
         _p[1] = json::value_to<Quat>(obj.at("p2"));
@@ -107,7 +107,7 @@ public:
     double _bailout;
     int _maxiter;
     double _lastiter;
-    double _lvalue;
+    double _lTerm;
     int _formula;
     static constexpr size_t numPowers = 4;
     Quat _p[numPowers];
@@ -115,12 +115,14 @@ public:
 
 FractalSpec tag_invoke(const json::value_to_tag< FractalSpec >&, json::value const& jv);
 
+
 enum class WhichEye {
     Monocular,
     Right,
     Left
 };
 double whichEyeToSign(WhichEye eye);
+
 
 class FractalView : public JSONSerializable {
 public:
@@ -143,7 +145,7 @@ public:
         return _yres * _antialiasing;
     }
 
-    /* calculates the base and specially normalized base according to information in v */
+    /* calculates the _base and specially normalized base according to information in v */
    /* base: will be set by function. Origin and base vectors in 3d "float" space */
    /* sbase: will be set by function. Origin and base vectors specially normalized for 3d "integer" space */
    /*        may be NULL */
@@ -154,15 +156,15 @@ public:
    /* returns -1 if view information makes no sense (a division by zero would occur) */
    /* returns 0 if successful */
     int calcbase(
-        base_struct* base,
-        base_struct* sbase,
+        ViewBasis* base,
+        ViewBasis* sbase,
         WhichEye viewType);
 
     int DoCalcbase(
-        base_struct* base,
-        base_struct* sbase,
+        ViewBasis* base,
+        ViewBasis* sbase,
         bool use_proj_up,
-        vec3 proj_up);
+        Vec3 proj_up);
 
     /* Calculates brightness (diffuse, distance, phong) for point p */
     /* ls: vector origin to light source */
@@ -170,7 +172,7 @@ public:
     /* n: normal vector (length 1 !!!) of object in lightened point */
     /* z: vector point to viewer (length 1 !!!) */
     /* returns brightness from 0.0 to 1.0 / or 255, if ls=p (=error) */
-    double brightness(const vec3& p, const vec3& n, const vec3& z) const;
+    double brightness(const Vec3& p, const Vec3& n, const Vec3& z) const;
 
     void reset();
     void print() const;
@@ -178,7 +180,7 @@ public:
     FractalView(const json::value& jv);
     virtual json::value toJSON() const;
 
-    vec3 _s, _up, _light;
+    Vec3 _s, _up, _light;
     double _Mov[2];
     double _LXR;
     int _xres, _yres, _zres;
@@ -188,7 +190,6 @@ public:
 };
 
 FractalView tag_invoke(const json::value_to_tag< FractalView >&, json::value const& jv);
-
 
 
 
@@ -228,12 +229,12 @@ public:
     void reset();
     void print();
     size_t count() const;
-    bool getPlane(size_t i, vec3& normal, vec3& point) const;
-    bool setPlane(size_t i, const vec3& normal, const vec3 point);
-    bool addPlane(const vec3& normal, const vec3& point);
+    bool getPlane(size_t i, Vec3& normal, Vec3& point) const;
+    bool setPlane(size_t i, const Vec3& normal, const Vec3& point);
+    bool addPlane(const Vec3& normal, const Vec3& point);
     bool deletePlane(size_t i);
 
-    bool cutaway(const vec3 x) const;
+    bool cutaway(const Vec3 x) const;
     bool cutnorm(const Quat& x1, const Quat& x2, Quat& nq) const;
 
     CutSpec(const json::value& jv);
@@ -243,12 +244,12 @@ public:
     static constexpr size_t cutBufSize = 140;
     /* intersection objects definitions (only planes for now) */
     /* every structure in this section must have */
-    /* a char "cut_type" as first element */
+    /* _a char "cut_type" as first element */
 
 private:
     size_t _count;
-    vec3 _normal[maxCuts];
-    vec3 _point[maxCuts];
+    Vec3 _normal[maxCuts];
+    Vec3 _point[maxCuts];
 };
 
 CutSpec tag_invoke(const json::value_to_tag< CutSpec >&, json::value const& jv);
@@ -323,19 +324,22 @@ FractalPreferences tag_invoke(const json::value_to_tag< FractalPreferences >&, j
 struct iter_struct;
 
 struct calc_struct {
-    calc_struct& operator=(const calc_struct& c) {
-        memcpy(this, &c, sizeof(*this));
-        return *this;
-    }
-    Quat xp, xs, xq, xcalc;
-    FractalSpec f;
-    FractalView v;
-    base_struct sbase, base, aabase;
-    double absx, absy, absz;
-    CutSpec cuts;
-    int (*iterate_no_orbit) (iter_struct*);
-    int (*iterate) (iter_struct*);
-    int (*iternorm) (iter_struct* is, vec3& norm);
+    calc_struct(
+        const FractalSpec& fractal,
+        const FractalView& view,
+        const CutSpec& _cuts,
+        ViewBasis& base,
+        ViewBasis& sbase,
+        ZFlag zflag);
+    Quat _xp, _xs, _xq, _xcalc;
+    FractalSpec _f;
+    FractalView _v;
+    ViewBasis _sbase, _base, _aabase;
+    double _absx, _absy, _absz;
+    CutSpec _cuts;
+    int (*_iterate_no_orbit) (iter_struct*);
+    int (*_iterate) (iter_struct*);
+    int (*_iternorm) (iter_struct* is, Vec3& norm);
 
     /* calculates a whole line of depths (precision: 1/20th of the base step in z direction), */
     /* Brightnesses and Colors */
@@ -345,15 +349,19 @@ struct calc_struct {
     /* BBuf: buffer for xres floats. The brightnesses will be stored here */
     /* CBuf: buffer for xres floats. The colors will be stored here */
     /* fields in calc_struct: */
-    /* sbase: the specially normalized base of the screen's coordinate-system */
+    /* sbase: the specially normalized _base of the screen's coordinate-system */
     /* f, v: structures with the fractal and view information */
     /* zflag: 0..calc image from scratch;
               1..calc ZBuffer from scratch;
               2..calc image from ZBuffer */
               /* if zflag==2, LBuf must be initialized with the depths from the ZBuffer */
+    int calcline2(long x1, long x2, int y,
+        double* LBuf, float* BBuf, float* CBuf,
+        ZFlag zflag);
     int calcline(long x1, long x2, int y,
         double* LBuf, float* BBuf, float* CBuf,
         ZFlag zflag);
+    void obj_distance_search_range(int& zFrom, int& zTo);
     double obj_distance(int zStart = 0);
     float colorizepoint();
     float brightpoint(long x, int y, double* LBuf);

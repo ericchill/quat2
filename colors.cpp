@@ -32,7 +32,7 @@
 #include "colors.h"
 
 
-int DimAndGammaTrueColor(double RR, double GG, double BB,
+int dimAndGammaTrueColor(double RR, double GG, double BB,
     double* R, double* G, double* B,
     double rgam, double ggam, double bgam,
     double bright) {
@@ -126,7 +126,7 @@ double RealPalette::computeWeightSum() {
     return _weightSum;
 }
 
-void RealPalette::GetTrueColor(
+void RealPalette::getTrueColor(
     double color,
     double* r, double* g, double* b) {
     int i;
@@ -152,16 +152,16 @@ int RealPalette::pixelValue(
     int x1, int x2,
     int rmax, int gmax, int bmax,
     unsigned char* line,
-    float* CBuf,
-    float* BBuf) {
+    float* cBuf,
+    float* bBuf) {
     int i;
     double r, g, b;
     int ir, ig, ib;
 
     for (i = x1; i <= x2; i++) {
-        if (BBuf[i] > 0.0001) {
-            GetTrueColor(CBuf[i], &r, &g, &b);
-            DimAndGammaTrueColor(r, g, b, &r, &g, &b, GAMMA, GAMMA, GAMMA, BBuf[i]);
+        if (bBuf[i] > 0.0001) {
+            getTrueColor(cBuf[i], &r, &g, &b);
+            dimAndGammaTrueColor(r, g, b, &r, &g, &b, GAMMA, GAMMA, GAMMA, bBuf[i]);
             ir = static_cast<int>(floor(r * (float)rmax));
             ig = static_cast<int>(floor(g * (float)gmax));
             ib = static_cast<int>(floor(b * (float)bmax));

@@ -18,30 +18,33 @@
 #define TOO_BIG(x)   (fabs(x) > 1e+100)
 
 
+template<typename T=double>
 class alignas(16) vec3 {
-    double _v[3];
-    double _pad;
+    T _v[3];
+    T _pad;
 public:
+    static constexpr size_t nComponents = 3;
+
     vec3() {
         memset(_v, 0, sizeof(_v));
     }
     vec3(const vec3& v) {
         memcpy(_v, v._v, sizeof(_v));
     }
-    vec3(double x, double y, double z) {
+    vec3(T x, T y, T z) {
         _v[0] = x;
         _v[1] = y;
         _v[2] = z;
     }
-    vec3(double* p) {
+    vec3(T* p) {
         for (int i = 0; i < 3; i++) {
             _v[i] = p[i];
         }
     }
-    double& operator[](size_t i) {
+    T& operator[](size_t i) {
         return _v[i];
     }
-    double operator[](size_t i) const {
+    T operator[](size_t i) const {
         return _v[i];
     }
     vec3 operator+(const vec3& o) const {
@@ -65,25 +68,25 @@ public:
         }
         return res;
     }
-    vec3 operator*(double s) const {
+    vec3 operator*(T s) const {
         vec3 res = *this;
         for (int i = 0; i < 3; i++) {
             res[i] *= s;
         }
         return res;
     }
-    vec3 operator/(double s) const {
+    vec3 operator/(T s) const {
         vec3 res = *this;
         for (int i = 0; i < 3; i++) {
             res[i] /= s;
         }
         return res;
     }
-    vec3 operator+=(vec3& o) {
+    vec3 operator+=(const vec3& o) {
         *this = *this + o;
         return *this;
     }
-    vec3 operator/=(double s) {
+    vec3 operator/=(T s) {
         *this = *this / s;
         return *this;
     }
@@ -93,8 +96,8 @@ public:
     double magnitude() const {
         return sqrt(dot(*this));
     }
-    vec3 normalize() const {
-        double m = magnitude();
+    vec3 normalized() const {
+        T m = magnitude();
         if (m != 0) {
             return *this / m;
         } else {
@@ -109,22 +112,31 @@ public:
     }
 };
 
-inline vec3 operator*(double s, const vec3& v) {
+template<typename T=double>
+inline vec3<T> operator*(T s, const vec3<T>& v) {
     return v * s;
 }
 
-std::ostream& operator<<(std::ostream& oo, const vec3& v);
+typedef vec3<> Vec3;
 
-void tag_invoke(const json::value_from_tag&, json::value& jv, vec3 const& t);
+std::ostream& operator<<(std::ostream& oo, const Vec3& v);
 
-vec3 tag_invoke(const json::value_to_tag< vec3 >&, json::value const& jv);
+void tag_invoke(const json::value_from_tag&, json::value& jv, Vec3 const& t);
+
+Vec3 tag_invoke(const json::value_to_tag< Vec3 >&, json::value const& jv);
 
 
+inline Vec3 operator*(double s, const Vec3& v) {
+    return v * s;
+}
 
-template<typename T>
+
+template<typename T=double>
 class alignas(16) Quaternion {
     T _q[4];
 public:
+    static constexpr size_t nComponents = 4;
+
     CUDA_CALLABLE Quaternion() {
         memset(_q, 0, sizeof(_q));
     }
@@ -141,7 +153,7 @@ public:
         _q[2] = c;
         _q[3] = d;
     }
-    CUDA_CALLABLE Quaternion(const vec3& v) {
+    CUDA_CALLABLE Quaternion(const vec3<T>& v) {
         for (int i = 0; i < 3; i++) {
             _q[i] = v[i];
         }
@@ -267,13 +279,13 @@ public:
         return res;
     }
 
-    CUDA_CALLABLE Quaternion<T> operator+=(const Quaternion<T> o) {
+    CUDA_CALLABLE Quaternion<T> operator+=(const Quaternion<T>& o) {
         *this = *this + o;
         return *this;
     }
 
-    CUDA_CALLABLE operator vec3() const {
-        return vec3(_q[0], _q[1], _q[2]);
+    CUDA_CALLABLE operator vec3<T>() const {
+        return vec3<T>(_q[0], _q[1], _q[2]);
     }
 };
 
@@ -381,3 +393,64 @@ Quaternion<double> Quaternion<double>::squared() const {
         2 * _q[0] * _q[3]);
 #endif
 }
+
+
+template<typename T=double, unsigned int N=3>
+class Cube {
+    T _000[N];
+    T _111[N];
+public:
+    Cube() {
+        for (int i = 0; i < N; i++) {
+            _000[i] = _111[i] = 0;
+        }
+    }
+    void addPoint(const T* p) {
+        for (int i = 0; i < N; i++) {
+            _000[i] = fmin(_000[i], p[i]);
+            _111[i] = fmax(_111[i], p[i]);
+        }
+    }
+    void addPoint(const vec3<T>& p) {
+        for (int i = 0; i < 3; i++) {
+            _000[i] = fmin(_000[i], p[i]);
+            _111[i] = fmax(_111[i], p[i]);
+        }
+    }
+    void addPoint(const Quaternion<T>& p) {
+        for (int i = 0; i < 3; i++) {
+            _000[i] = fmin(_000[i], p[i]);
+            _111[i] = fmax(_111[i], p[i]);
+        }
+    }
+    bool contains(const T* p) {
+        for (int i = 0; i < N; i++) {
+            if (p[i] < _000[i] || p[i] > _111[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+    bool contains(const vec3<T>& p) {
+        for (int i = 0; i < 3; i++) {
+            if (p[i] < _000[i] || p[i] > _111[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+    bool contains(const Quaternion<T>& p) {
+        for (int i = 0; i < 3; i++) {
+            if (p[i] < _000[i] || p[i] > _111[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+    vec3<T> get000() const {
+        return _000;
+    }
+    vec3<T> get111() const {
+        return _111;
+    }
+};

@@ -54,17 +54,17 @@ int CopyIDAT(bool copy,
     LexicallyScopedPtr<unsigned char> lineBuf = new unsigned char[i->width() * 3 + 1];
 
     while (!(i->checkChunkType(image_data_label) || i->checkChunkType(image_end_label))) {
-        i->GetNextChunk();
+        i->getNextChunk();
     }
     if (i->checkChunkType(image_end_label)) {
         return -1; /* No IDAT chunk found */
     }
     for (int j = 0; j < ystart; j++) {
-        if (i->ReadPNGLine(lineBuf)) {
+        if (i->readPNGLine(lineBuf)) {
             return -2;
         }
         if (copy) {
-            i2->WritePNGLine(lineBuf);
+            i2->writePNGLine(lineBuf);
         }
 
         lineDst.putLine(0L, i->width() - 1, i->width(), j, &lineBuf[1], zflag != ZFlag::NewImage);
@@ -91,7 +91,7 @@ int CalculatePNG(
     /* pngf2 ... file to create */
     /* ini      ... ini file with parameters to replace ZBuffer parameters */
 {
-    base_struct rbase, srbase, lbase, slbase, cbase;
+    ViewBasis rbase, srbase, lbase, slbase, cbase;
     FractalPreferences fractal;
     int xadd, yadd, xstart, ystart;
     FILE* png2;
@@ -243,7 +243,7 @@ int ReadParametersAndImage(
 
     png_info_struct png_info;
     int xadd, yadd, i, xres, yr;
-    base_struct base, sbase;
+    ViewBasis base, sbase;
     char pngfile[256];
     char errString[256];
 
@@ -349,17 +349,17 @@ int SavePNG(
     for (i = 0; i < yres; i++) {
         QU_getline(&line[1], i, xres, zflag);
         line[0] = 0; /* Set filter method */
-        png_internal.DoFiltering(line);
-        if (png_internal.WritePNGLine(line)) {
+        png_internal.doFiltering(line);
+        if (png_internal.writePNGLine(line)) {
             sprintf_s(Error, maxErrorLen, "Error writing file '%s' in WritePNGLine\n", pngfile);
             return -1;
         }
     }
 
-    i = png_internal.EndIDAT();
+    i = png_internal.endIDAT();
     png_internal.setChunkType(image_end_label);
 
-    if (i != 0 || !png_internal.WriteChunk(&dummy, 0)) {
+    if (i != 0 || !png_internal.writeChunk(&dummy, 0)) {
         sprintf_s(Error, maxErrorLen, "Error writing file '%s' after EndPNG\n", pngfile);
         return -1;
     }
@@ -413,7 +413,7 @@ int ReadParametersPNG(
     png_info_struct png_info;
     int xstart, ystart;
     int i;
-    base_struct base, sbase;
+    ViewBasis base, sbase;
     char file[256];
     char errString[256];
 

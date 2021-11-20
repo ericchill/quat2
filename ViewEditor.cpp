@@ -443,8 +443,8 @@ void ViewEditor::get(FractalView& v) {
     v._Mov[1] = _view._Mov[1];
 }
 
-bool ViewEditor::isParallel(const vec3& a, const vec3& b) {
-    vec3 c = a.cross(b);
+bool ViewEditor::isParallel(const Vec3& a, const Vec3& b) {
+    Vec3 c = a.cross(b);
     return c.dot(c) == 0;
 }
 
@@ -454,7 +454,7 @@ double ViewEditor::newangle() {
     if (a == 0.0 && _view.isStereo()) {
         return 180.0;
     } else if (a == 0.0) {
-        return(ocular_angle->value());
+        return ocular_angle->value();
     } else {
         return atan(_view._interocular / (2.0 * a)) * 360.0 / M_PI;
     }

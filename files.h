@@ -60,7 +60,7 @@ int ReadParameters(
     PNGFile& internal,
     FractalPreferences& fractal);
 
-int UpdateQUATChunk(
+int updateQUATChunk(
     PNGFile& internal,
     int actx,
     int acty);

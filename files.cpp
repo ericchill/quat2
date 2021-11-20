@@ -123,7 +123,7 @@ int writeQuatPNGHead(
 
     frac = fractal.fractal();
     view = fractal.view();
-    FormatExternToIntern(frac, view);
+    formatExternToIntern(frac, view);
 
     strcpy_s(pngname, sizeof(pngname), name);
     ConvertPath(pngname);
@@ -144,14 +144,14 @@ int writeQuatPNGHead(
     }
     png_internal.setDimensions(xPixelCount, yPixelCount);
 
-    if (png_internal.InitWritePNG(*png)) {
+    if (png_internal.initWritePNG(*png)) {
         return -1;
     }
 
     /* Write a gAMA chunk */
     png_internal.setChunkType(gamma_chunk_label);
     ulong2bytes(static_cast<long>(GAMMA * 100000), longBuf);
-    if (!png_internal.WriteChunk(longBuf, sizeof(longBuf))) {
+    if (!png_internal.writeChunk(longBuf, sizeof(longBuf))) {
         return -1;
     }
 
@@ -161,14 +161,14 @@ int writeQuatPNGHead(
     png_internal.setChunkType(text_chunk_label);
     strcpy_s(Buf, bufAllocSize, "Title");
     strcpy_s(&Buf[6], bufAllocSize - 6, "Quaternion fractal image");
-    if (!png_internal.WriteChunk((unsigned char*)(char*)Buf, 6 + strlen(&Buf[6]) + 1)) {
+    if (!png_internal.writeChunk((unsigned char*)(char*)Buf, 6 + strlen(&Buf[6]) + 1)) {
         return -1;
     }
 
     png_internal.setChunkType(text_chunk_label);
     strcpy_s(Buf, bufAllocSize, "Software");
     sprintf_s(&Buf[9], bufAllocSize - 9, "%s %s", PROGNAME, PROGVERSION);
-    if (!png_internal.WriteChunk((unsigned char*)(char*)Buf, strlen(Buf) + strlen(&Buf[9]) + 1)) {
+    if (!png_internal.writeChunk((unsigned char*)(char*)Buf, strlen(Buf) + strlen(&Buf[9]) + 1)) {
         return -1;
     }
 
@@ -179,7 +179,7 @@ int writeQuatPNGHead(
     ctime_s(timeStr, sizeof(timeStr), &dtime);
     timeStr[strlen(timeStr) - 1] = '\0';
     sprintf_s(&Buf[14], bufAllocSize - 14, "%s", timeStr);
-    if (!png_internal.WriteChunk((unsigned char*)(char*)Buf, 14 + strlen(&Buf[14]) + 1)) {
+    if (!png_internal.writeChunk((unsigned char*)(char*)Buf, 14 + strlen(&Buf[14]) + 1)) {
         return -1;
     }
 
@@ -209,7 +209,7 @@ int writeQuatPNGHead(
     c_stream.avail_in = static_cast<uInt>(fracJSON.size());
     deflate(&c_stream, Z_FINISH);
     deflateEnd(&c_stream);
-    if (!png_internal.WriteChunk(uBuf, c_stream.total_out + i)) {
+    if (!png_internal.writeChunk(uBuf, c_stream.total_out + i)) {
         return -1;
     }
     return 0;
@@ -282,7 +282,7 @@ int ReadParameters(
 
     /* search until quAt chunk found */
     while (!(internal.checkChunkType(quat_chunk_label) || internal.checkChunkType(image_end_label))) {
-        internal.GetNextChunk();
+        internal.getNextChunk();
     }
     /* No quAt chunk? */
     if (internal.checkChunkType(image_end_label)) {
@@ -291,7 +291,7 @@ int ReadParameters(
     }
     sprintf_s(s, sizeof(s), "%s %s", PROGNAME, PROGVERSION);
     LexicallyScopedPtr<unsigned char> Buf = new unsigned char[internal.length()];
-    internal.ReadChunkData(Buf);
+    internal.readChunkData(Buf);
     if (strncmp((char*)(unsigned char*)Buf, s, 4) != 0) {
         sprintf_s(Error, maxErrorLen, "No QUAT signature in QUAT chunk.\n");
         return -5;
@@ -331,24 +331,24 @@ int ReadParameters(
     fractal = json::value_to<FractalPreferences>(parsed);
     inflateEnd(&d);
 
-    if (FormatInternToExtern(fractal.fractal(), fractal.view()) != 0) {
+    if (formatInternToExtern(fractal.fractal(), fractal.view()) != 0) {
         sprintf_s(Error, maxErrorLen, "Strange: Error in view struct!");
         return -1;
     }
     return thisver >= ver ? 0 : -128;
 }
 
-int UpdateQUATChunk(PNGFile& internal, int actx, int acty) {
+int updateQUATChunk(PNGFile& internal, int actx, int acty) {
     char s[41];
     long QuatPos;
 
     /* Back to beginning */
     internal.flush();
-    internal.PosOverIHDR();
+    internal.posOverIHDR();
 
     /* search until quAt chunk found */
     while (!(internal.checkChunkType(quat_chunk_label) || internal.checkChunkType(image_end_label))) {
-        internal.GetNextChunk();
+        internal.getNextChunk();
     }
     /* No quAt chunk? */
     if (internal.checkChunkType(image_end_label)) {
@@ -357,7 +357,7 @@ int UpdateQUATChunk(PNGFile& internal, int actx, int acty) {
     sprintf_s(s, sizeof(s), "%s %s", PROGNAME, PROGVERSION);
     QuatPos = internal.position() - 8;
     LexicallyScopedPtr<unsigned char> Buf = new unsigned char[internal.length()];
-    internal.ReadChunkData(Buf);
+    internal.readChunkData(Buf);
     if (strncmp((char*)(unsigned char*)Buf, s, strlen(s)) != 0) {
         return -5;
     }
@@ -371,7 +371,7 @@ int UpdateQUATChunk(PNGFile& internal, int actx, int acty) {
     Buf[strlen(s) + 8] = (unsigned char)(calc_time & 0xffL);
     internal.flush();
     internal.position(QuatPos);
-    if (!internal.WriteChunk(Buf)) { // length is left over from last ReadChunkData
+    if (!internal.writeChunk(Buf)) { // length is left over from last readChunkData
         return -1;
     }
     internal.flush();
@@ -385,15 +385,15 @@ int PNGEnd(PNGFile& png_internal,
     unsigned char dummy;
 
     for (unsigned int i = acty; i < png_internal.height(); i++) {
-        png_internal.WritePNGLine(buf);
+        png_internal.writePNGLine(buf);
     }
 
-    png_internal.EndIDAT();
+    png_internal.endIDAT();
     png_internal.setChunkType(image_end_label);
-    if (!png_internal.WriteChunk(&dummy, 0)) {
+    if (!png_internal.writeChunk(&dummy, 0)) {
         return -1;
     }
-    UpdateQUATChunk(png_internal, actx, acty);
+    updateQUATChunk(png_internal, actx, acty);
 
     return 0;
 }

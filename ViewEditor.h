@@ -110,7 +110,7 @@ public:
     FractalView& viewRef() {
         return _view;
     }
-    bool isParallel(const vec3& a, const vec3& b);
+    bool isParallel(const Vec3& a, const Vec3& b);
     double newangle();
     double newdist();
     void checkValidity();

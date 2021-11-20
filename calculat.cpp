@@ -30,6 +30,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include "calculat.h"
+#include "memory.h"
+#include <crtdbg.h>
 
 char f_set(double* a, const double* b);
 char f_add(double* a, const double* b);
@@ -54,35 +56,28 @@ char f_sinh(double* a, const double* b);
 char f_cosh(double* a, const double* b);
 char f_tanh(double* a, const double* b);
 char f_random(double* a, const double* b);
-void GetObjectBefore_s(char* b, size_t size, char* s, int p);
-void GetObjectBehind_s(char* b, size_t size, char* s, int p);
-bool IsNumber(const char* s);
-bool IsVar(const char* s, struct progtype* prog);
-int VarNr(const char* s, struct progtype* prog);
-bool IsRegister(const char* s);
-int IsFunction(const char* s, struct progtype* prog);
-int AllocObjs(size_t len, char** a, char** b, char** c, char** d);
-int FreeObjs(char* a, char* b, char* c, char* d);
-int DoTranslate(char* errorMsg, size_t maxErrorLength, char* a, size_t aLen, progtype* prog);
 
-char operators[20] = "+-*/^";
-char numbers[20] = "0123456789.";
-char registers[30] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-char prio1[5] = "^";
-char prio2[5] = "*/";
-char prio3[5] = "+-";
+constexpr char *operators = "+-*/^";
+constexpr char *numbers = "0123456789.";
+constexpr char *registers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+constexpr char *prio1 = "^";
+constexpr char *prio2 = "*/";
+constexpr char *prio3 = "+-";
 
-double reg[26];
-int regscount;
-int ocount;
+size_t strindex(const char* toSearch, char value) {
+    return strchr(toSearch, value) - toSearch;
+}
+
 
 /* number of functions defined the line below */
-#define fncount 17
-const char* functions[fncount] = { "sin", "cos", "sqr", "sqrt", "exp", "ln",
-                   "round", "trunc", "abs", "tan", "random",
-                   "atan", "asin", "acos",
-                   "sinh", "cosh", "tanh"
+constexpr char* functions[] = {
+    "sin", "cos", "sqr", "sqrt", "exp", "ln",
+    "round", "trunc", "abs", "tan", "random",
+    "atan", "asin", "acos",
+    "sinh", "cosh", "tanh"
 };
+
+constexpr int fncount = sizeof(functions) / sizeof(functions[0]);
 
 /* Define functions for mathematical operations */
 char f_set(double* a, const double* b) {
@@ -106,17 +101,21 @@ char f_mul(double* a, const double* b) {
 }
 
 char f_div(double* a, const double* b) {
-    if (fabs(*b) < 1E-30) return 1;   /* Division by zero */
-    else *a = (*a) / (*b);
+    if (fabs(*b) < 1E-30) {
+        return 1;   /* Division by zero */
+    }
+    *a = (*a) / (*b);
     return 0;
 }
 
 char f_pow(double* a, const double* b) {
-    if (0 == *a && *b <= 0) return 1;   /* would be division by zero or 0^0 */
-    else {
-        if (*a < 0 && ceil(*b) != *b) return 1;   /* would be root of neg. number */
-        else *a = pow(*a, *b);
+    if (0 == *a && *b <= 0) {
+        return 1;   /* would be division by zero or 0^0 */
     }
+    if (*a < 0 && ceil(*b) != *b) {
+        return 1;   /* would be root of neg. number */
+    }
+    *a = pow(*a, *b);
     return 0;
 }
 
@@ -136,7 +135,9 @@ char f_sqr(double* a, const double* b) {
 }
 
 char f_sqrt(double* a, const double* b) {
-    if (*b < 0) return 1;
+    if (*b < 0) {
+        return 1;
+    }
     *a = sqrt(*b);
     return 0;
 }
@@ -147,8 +148,10 @@ char f_exp(double* a, const double* b) {
 }
 
 char f_ln(double* a, const double* b) {
-    if (*b <= 0) return 1;
-    else *a = log(*b);
+    if (*b <= 0) {
+        return 1;
+    }
+    *a = log(*b);
     return 0;
 }
 
@@ -168,8 +171,11 @@ char f_acos(double* a, const double* b) {
 }
 
 char f_round(double* a, const double* b) {
-    if (*b - floor(*b) >= 0.5) *a = ceil(*b);
-    else *a = floor(*b);
+    if (*b - floor(*b) >= 0.5) {
+        *a = ceil(*b);
+    } else {
+        *a = floor(*b);
+    }
     return 0;
 }
 
@@ -184,8 +190,11 @@ char f_abs(double* a, const double* b) {
 }
 
 char f_tan(double* a, const double* b) {
-    if (cos(*b) == 0) return 1;
-    else *a = tan(*b);
+    if (cos(*b) == 0) {
+        return 1;
+    } else {
+        *a = tan(*b);
+    }
     return 0;
 }
 
@@ -209,77 +218,79 @@ char f_random(double* a, const double* b) {
     return 0;
 }
 
-void GetObjectBefore_s(char* b, size_t size, char* s, int p) {
-    /* b ... string returned
+
+std::string getObjectBefore(const std::string& s, int p) {
+    /*
        s ... string to look for object
        p ... position to start looking
     */
 
     int i = p - 1;
-    /*   while (strchr(operators, *(s+i))==NULL && i>=0) i--; */
-    while (i >= 0 && strchr(operators, *(s + i)) == NULL) --i;
-    strcpy_s(b, size, s + i + 1); *(b + p - i - 1) = 0;
+    while (i >= 0 && strchr(operators, s[i]) == NULL) --i;
+    std::string result(s.substr(i + 1, p - i - 1));
+    return result;
 }
 
-void GetObjectBehind_s(char* b, size_t size, char* s, int p) {
-    /* b ... string returned
+std::string getObjectAfter(const std::string& s, int p) {
+    /*
        s ... string to look for object
        p ... position to start looking
     */
 
     unsigned int i = p + 1;
-    while (strchr(operators, *(s + i)) == NULL && i <= strlen(s) + 1) i++;
-    strcpy_s(b, size, s + p + 1); *(b + i - p - 1) = 0;
-}
-
-bool IsVar(const char* s, progtype* prog) {
-    int i;
-
-    i = 0;
-    while (i < prog->vardef && strcmp(s, prog->varnames[i]) != 0) {
+    while (i < s.size() && strchr(operators, s[i]) == NULL) {
         i++;
     }
-    return strcmp(s, prog->varnames[i]) == 0;
+    std::string result(s.substr(p + 1, i - p - 1));
+    return result;
 }
 
-int VarNr(const char* s, progtype* prog) {
-    int i;
 
-    i = 0;
-    while (i < prog->vardef && strcmp(s, prog->varnames[i]) != 0) {
+bool progtype::isVar(const std::string& s) {
+    int i = 0;
+    while (i < _varDef && s.compare(0, strlen(_varNames[i]), _varNames[i]) != 0) {
         i++;
     }
-    if (strcmp(s, prog->varnames[i]) == 0 && i < prog->vardef) {
-        return(i);
+    return i < _varDef;
+}
+
+int progtype::varNumber(const std::string& s) {
+    int i = 0;
+    while (i < _varDef && s.compare(0, strlen(_varNames[i]), _varNames[i]) != 0) {
+        i++;
+    }
+    if (i < _varDef) {
+        return i;
     } else {
-        return(255);
+        return 255;
     }
 }
 
-bool IsNumber(const char* s) {
-    char** endptr;
+bool progtype::isNumber(const std::string& s) {
     char* p;
 
-    if (0 == s[0]) return false;
-    endptr = &p;
-    strtod(s, endptr);
-    return 0 == **endptr;
+    if (0 == s.size()) {
+        return false;
+    }
+    (void)strtod(s.c_str(), &p);
+    return '\0' == *p;
 }
 
-
-bool IsRegister(const char* s) {
-    unsigned int i;
-    if (0 == s[0]) return 0;
-    if (strchr(registers, *s) != NULL) {
-        i = 1;
-        while (*(s + i) == ' ' && i < strlen(s) - 1) i++;
-        if (*(s + i) != ' ' && i != 1) return 0;
-        return true;
+bool progtype::isRegister(const std::string& s) {
+    if (0 == s.size()) {
+        return 0;
+    }
+    if (strchr(registers, s[0]) != NULL) {
+        int i = 1;
+        while (isspace(s[i]) && i < s.size() - 1) {
+            i++;
+        }
+        return i == 1 || isspace(s[i]);
     }
     return false;
 }
 
-int IsFunction(const char* s, struct progtype* prog)
+int progtype::isFunction(const std::string& s)
 /* return code >=0: number of integrated function */
 /* >=0 and bit 7 set (>=128): number of declared function */
 /* -1: error, none of the above */
@@ -287,12 +298,12 @@ int IsFunction(const char* s, struct progtype* prog)
     int i;
 
     for (i = 0;
-        (i < prog->availfncount
-            && strcmp(s, prog->avail_functions[i].name) != 0);
+        (i < _availFnCount
+            && 0 != s.compare(0, strlen(_availFunctions[i].name), _availFunctions[i].name) != 0);
         i++);
-    if (i == prog->availfncount) {
+    if (i == _availFnCount) {
         for (i = 0;
-            (i < fncount && strcmp(s, functions[i]) != 0);
+            (i < fncount && s.compare(0, strlen(functions[i]), functions[i]) != 0);
             i++);
         if (i == fncount) {
             return -1;
@@ -300,334 +311,314 @@ int IsFunction(const char* s, struct progtype* prog)
             return i;
         }
     }
-    return(i + 128);
+    return i + 128;
 }
 
-int DeclareFunction(const char* name, funcptr f, struct progtype* prog)
+int progtype::declareFunction(const char* name, funcptr f)
 /* returns -1 if too many functions declared */
 {
-    int i;
-    i = IsFunction(name, prog);
+    int i = isFunction(name);
     if (i >= 128) {
-        prog->avail_functions[i - 128].func = f;
+        _availFunctions[i - 128].func = f;
         return 0;
     }
-    if (prog->availfncount == 30) {
+    if (_availFnCount == 30) {
         return -1;
     }
-    prog->avail_functions[prog->availfncount].func = f;
-    prog->avail_functions[prog->availfncount++].name = name;
+    _availFunctions[_availFnCount].func = f;
+    _availFunctions[_availFnCount++].name = name;
     return 0;
 }
 
 /* Set value of variable / create new variable */
-int SetVariable(const char* name,
-    unsigned char* handle, double value,
-    struct progtype* prog) {
-    int i;
+int progtype::setVariable(
+    const char* name,
+    unsigned char* handle,
+    double value) {
 
-    if (*handle < prog->vardef) {
-        prog->varvalues[*handle] = value;
+    if (*handle < _varDef) {
+        _varValues[*handle] = value;
     } else {
-        i = VarNr(name, prog);
-        if (i == 255) {
-            if (prog->vardef == 30) {
+        int i = varNumber(name);
+        if (255 == i) {
+            if (_varDef == 30) {
                 return 100;
             }
-            *handle = prog->vardef;
-            strcpy_s(prog->varnames[(int)prog->vardef], sizeof(prog->varnames[0]), name);
-            prog->varvalues[(int)prog->vardef++] = value;
+            *handle = _varDef;
+            strcpy_s(_varNames[_varDef], sizeof(_varNames[0]), name);
+            _varValues[_varDef++] = value;
         } else {
             *handle = i;
-            prog->varvalues[i] = value;
+            _varValues[i] = value;
         }
     }
     return -1;
 }
 
-void InitProg(struct progtype* prog) {
-    prog->vardef = 0;
+void progtype::reset() {
+    _varDef = 0;
     for (int i = 0; i < 30; i++) {
-        prog->avail_functions[i].name = "";
+        _availFunctions[i].name = "";
     }
-    prog->availfncount = 0;
-    prog->func[0] = NULL;
+    _availFnCount = 0;
+    _program[0] = nullptr;
 }
 
-double calculate(char* notdef, struct progtype* prog) {
-    if (NULL == prog->func[0]) {
+double progtype::calculate(char* notdef) {
+    if (NULL == _program[0]) {
         return 0.0;
     }
     *notdef = 0;
     int i;
-    for (i = 0; prog->func[i] != NULL && i < 100 && 0 == *notdef; i++) {
-        notdef += prog->func[i](prog->a[i], prog->b[i]);
+    for (i = 0; _program[i] != NULL && i < 100 && 0 == *notdef; i++) {
+        notdef += _program[i](_a[i], _b[i]);
     }
-    return *(prog->a[i - 1]);
+    return *(_a[i - 1]);
 }
 
-int AllocObjs(size_t len, char** a, char** b, char** c, char** d) {
-    *a = new char[len];
-    *b = new char[len];
-    *c = new char[len];
-    *d = new char[len];
+int progtype::doTranslate(char* errorMsg, size_t maxErrorLen, std::string& expr) {
+    LexicallyScopedPtr<unsigned int> priori = new unsigned int[expr.size()];
+    std::string suba;
+    int error, fct;
 
-    if ((!*a) || (!*b) || (!*c) || (!*d)) {
-        return -1;
+    errorMsg[0] = '\0';
+    if (strchr(prio3, expr[0]) != NULL) {
+        expr.insert(0, 1, '0');
     }
-    return 0;
-}
-
-int FreeObjs(char* a, char* b, char* c, char* d) {
-    delete a;
-    delete b;
-    delete c;
-    delete d;
-    return 0;
-}
-
-int DoTranslate(char* errorMsg, size_t maxErrorLen, char* a, size_t aLen, progtype* prog) {
-    char* obj1, * obj2, * priori, * suba;
-    unsigned int i, j;
-    int k, sign;
-    int bropen, brcount, error, fct;
-
-    /* "+1" because of memmove some lines later */
-    size_t tmpStrLen = strlen(a) + 1;
-    if (AllocObjs(tmpStrLen, &obj1, &obj2, &priori, &suba) == -1) {
-        FreeObjs(obj1, obj2, priori, suba);
-        sprintf_s(errorMsg, maxErrorLen, "No memory");
-        return(100);
-    }
-    errorMsg[0] = 0;
-    if (strchr(prio3, a[0]) != NULL) {
-        memmove(a + 1, a, strlen(a) + 1);
-        a[0] = '0';
-    }
-    bropen = -1; brcount = 0;
-    for (j = 0; j < strlen(a); j++) {
-        if (a[j] == '(') {
-            if (bropen == -1) bropen = j;
+    int bropen = -1;
+    int brcount = 0;
+    for (int j = 0; j < expr.size(); j++) {
+        if (expr[j] == '(') {
+            if (bropen == -1) {
+                bropen = j;
+            }
             brcount++;
         }
-        if (a[j] == ')') brcount--;
+        if (expr[j] == ')') {
+            brcount--;
+        }
         if ((bropen != -1) && (0 == brcount)) {
-            strncpy_s(suba, tmpStrLen, a + bropen + 1, j - (bropen + 1));
-            suba[j - (bropen + 1)] = 0;
-            error = DoTranslate(errorMsg, maxErrorLen, suba, tmpStrLen, prog);
+            std::string suba = expr.substr(bropen + 1, j - (bropen + 1));
+            error = doTranslate(errorMsg, maxErrorLen, suba);
             if (error != 0) {
-                FreeObjs(obj1, obj2, priori, suba);
-                return(error);
+                return error;
             }
-            GetObjectBefore_s(obj1, tmpStrLen, a, bropen);
-            strncpy_s(a + bropen, aLen - bropen, suba, j - (bropen + 1));
-            memset(a + j - 1, ' ', 2);
-            fct = IsFunction(obj1, prog);
+            std::string obj1 = getObjectBefore(expr, bropen);
+            std::string obj2 = getObjectAfter(expr, bropen);
+            std::string subaFragment = suba.substr(0, j - (bropen + 1));
+            expr = expr.replace(bropen, subaFragment.size(), subaFragment);
+            expr.replace(bropen + subaFragment.size(), 2, 2, ' ');
+            fct = isFunction(obj1);
             if (fct != -1) {
 
                 if ((fct & 128) != 0) {
                     /* Create command */
-                    prog->func[ocount] = prog->avail_functions[fct & ~128].func;
-                    prog->a[ocount]
-                        = &(reg[strchr(registers, suba[0]) - &registers[0]]);
-                    prog->b[ocount]
-                        = &(reg[strchr(registers, suba[0]) - &registers[0]]);
+                    _program[_oCount] = _availFunctions[fct & ~128].func;
+                    _a[_oCount] = &_reg[strindex(registers, suba[0])];
+                    _b[_oCount] = &_reg[strindex(registers, suba[0])];
 
                 } else if (fct >= 0) {
 
                     /* Declare new function */
-                    k = 0;
+                    int k = 0;
                     switch (fct) {
-                    case 0:  k = DeclareFunction("sin", f_sin, prog); break;
-                    case 1:  k = DeclareFunction("cos", f_cos, prog); break;
-                    case 2:  k = DeclareFunction("sqr", f_sqr, prog); break;
-                    case 3:  k = DeclareFunction("sqrt", f_sqrt, prog); break;
-                    case 4:  k = DeclareFunction("exp", f_exp, prog); break;
-                    case 5:  k = DeclareFunction("ln", f_ln, prog); break;
-                    case 6:  k = DeclareFunction("round", f_round, prog); break;
-                    case 7:  k = DeclareFunction("trunc", f_trunc, prog); break;
-                    case 8:  k = DeclareFunction("abs", f_abs, prog); break;
-                    case 9:  k = DeclareFunction("tan", f_tan, prog); break;
-                    case 10: k = DeclareFunction("random", f_random, prog); break;
-                    case 11: k = DeclareFunction("atan", f_atan, prog); break;
-                    case 12: k = DeclareFunction("asin", f_asin, prog); break;
-                    case 13: k = DeclareFunction("acos", f_acos, prog); break;
-                    case 14: k = DeclareFunction("sinh", f_sinh, prog); break;
-                    case 15: k = DeclareFunction("cosh", f_cosh, prog); break;
-                    case 16: k = DeclareFunction("tanh", f_tanh, prog); break;
+                    case 0:  k = declareFunction("sin", f_sin); break;
+                    case 1:  k = declareFunction("cos", f_cos); break;
+                    case 2:  k = declareFunction("sqr", f_sqr); break;
+                    case 3:  k = declareFunction("sqrt", f_sqrt); break;
+                    case 4:  k = declareFunction("exp", f_exp); break;
+                    case 5:  k = declareFunction("ln", f_ln); break;
+                    case 6:  k = declareFunction("round", f_round); break;
+                    case 7:  k = declareFunction("trunc", f_trunc); break;
+                    case 8:  k = declareFunction("abs", f_abs); break;
+                    case 9:  k = declareFunction("tan", f_tan); break;
+                    case 10: k = declareFunction("random", f_random); break;
+                    case 11: k = declareFunction("atan", f_atan); break;
+                    case 12: k = declareFunction("asin", f_asin); break;
+                    case 13: k = declareFunction("acos", f_acos); break;
+                    case 14: k = declareFunction("sinh", f_sinh); break;
+                    case 15: k = declareFunction("cosh", f_cosh); break;
+                    case 16: k = declareFunction("tanh", f_tanh); break;
                     default: k = -255;
                     }
 
                     if (k == -1) {
                         sprintf_s(errorMsg, maxErrorLen, "%s", "Too many functions declared (max. 30)");
-                        return(-1);
+                        return -1;
                     }
                     if (k == -255) {
                         sprintf_s(errorMsg, maxErrorLen, "%s", "Internal error #1");
-                        return(-1);
+                        return -1;
                     }
                     /* Create command */
-                    prog->func[ocount] = prog->avail_functions[prog->availfncount - 1].func;
-                    prog->a[ocount] = &(reg[strchr(registers, suba[0]) - &registers[0]]);
-                    /* &(reg[regscount-1]); */
-                    prog->b[ocount] = &(reg[strchr(registers, suba[0]) - &registers[0]]);
-                    /* &(reg[regscount-1]); */
+                    _program[_oCount] = _availFunctions[_availFnCount - 1].func;
+                    _a[_oCount] = &_reg[strindex(registers, suba[0])];
+                    _b[_oCount] = &_reg[strindex(registers, suba[0])];
                 }
-                ocount++;
-                bropen -= static_cast<int>(strlen(obj1));
+                _oCount++;
+                bropen -= static_cast<int>(obj1.size());
             }
-            a[bropen] = suba[0];
-            memset(a + bropen + 1, ' ', j - bropen);
-            if ((bropen == 1) && (j == strlen(a))) {
+            expr.replace(bropen, suba.size() + 1, suba.size() + 1, ' ');
+            expr[bropen] = suba[0];
+            if ((1 == bropen) && (j == expr.size())) {
                 sprintf_s(errorMsg, maxErrorLen, "Internal error #2");
-                FreeObjs(obj1, obj2, priori, suba);
-                return(244);
+                return 244;
             }
-            bropen = -1; brcount = 0;
+            bropen = -1;
+            brcount = 0;
         }
     }
-    memset(priori, 0, strlen(a));
-    for (i = 0; i < strlen(a); i++) {
-        if (strchr(prio3, a[i]) != NULL) priori[i] = 3;
-        else if (strchr(prio2, a[i]) != NULL) priori[i] = 2;
-        else if (strchr(prio1, a[i]) != NULL) priori[i] = 1;
+    memset(priori, 0, suba.size());
+    for (int i = 0; i < expr.size(); i++) {
+        if (strchr(prio3, expr[i]) != NULL) priori[i] = 3;
+        else if (strchr(prio2, expr[i]) != NULL) priori[i] = 2;
+        else if (strchr(prio1, expr[i]) != NULL) priori[i] = 1;
     }
-    sign = 0;
-    for (j = 1; j < 4; j++) {
-        for (i = 0; i < strlen(a); i++) {
-            if (priori[i] == (char)j) {
+    int sign = 0;
+    for (unsigned int j = 1; j < 4; j++) {
+        for (int i = 0; i < expr.size(); i++) {
+            if (priori[i] == j) {
                 sign = 1; /* string contains calculation signs */
-                GetObjectBefore_s(obj1, tmpStrLen, a, (char)i);
-                GetObjectBehind_s(obj2, tmpStrLen, a, (char)i);
-                if (IsNumber(obj1) || IsVar(obj1, prog)) {
+                std::string obj1 = getObjectBefore(expr, i);
+                std::string obj2 = getObjectAfter(expr, i);
+                if (isNumber(obj1) || isVar(obj1)) {
                     /* create sequence "load register" */
-                    if ((int)i - (int)strlen(obj1) < 0) {
+                    if (i - obj1.size() < 0) {
                         sprintf_s(errorMsg, maxErrorLen, "Internal error #3");
-                        FreeObjs(obj1, obj2, priori, suba);
                         return 1;
-                    } else a[i - strlen(obj1)] = registers[regscount];
-                    prog->func[ocount] = f_set;
-                    prog->a[ocount] = &(reg[regscount]);
-                    if (IsNumber(obj1)) {
-                        prog->z[ocount] = atof(obj1);
-                        prog->b[ocount] = &(prog->z[ocount]);
-                    } else prog->b[ocount] = &(prog->varvalues[VarNr(obj1, prog)]);
-                    prog->a[ocount + 1] = &(reg[regscount]);
-                    ocount++; regscount++;
-                    if (ocount > progtype::maxComplication) {
+                    } else {
+                        expr[i - obj1.size()] = registers[_regsCount];
+                    }
+                    _program[_oCount] = f_set;
+                    _a[_oCount] = &_reg[_regsCount];
+                    if (isNumber(obj1)) {
+                        _z[_oCount] = atof(obj1.c_str());
+                        _b[_oCount] = &_z[_oCount];
+                    } else {
+                        _b[_oCount] = &_varValues[varNumber(obj1)];
+                    }
+                    _a[_oCount + 1] = &_reg[_regsCount];
+                    _oCount++;
+                    _regsCount++;
+                    if (_oCount > progtype::maxComplication) {
                         sprintf_s(errorMsg, maxErrorLen, "Formula too complex.");
-                        FreeObjs(obj1, obj2, priori, suba);
                         return 1;
                     }
-                } else if (!IsRegister(obj1) && !IsVar(obj1, prog)) {
-                    sprintf_s(errorMsg, maxErrorLen, "Unknown object A %s ", obj1);
-                    FreeObjs(obj1, obj2, priori, suba);
+                } else if (!isRegister(obj1) && !isVar(obj1)) {
+                    sprintf_s(errorMsg, maxErrorLen, "Unknown object on left of %c:  \"%s\" ", expr[i], obj1.c_str());
                     return 1;
                 }
                 /* create operation */
-                switch (a[i]) {
-                case '+': prog->func[ocount] = f_add; break;
-                case '-': prog->func[ocount] = f_sub; break;
-                case '*': prog->func[ocount] = f_mul; break;
-                case '/': prog->func[ocount] = f_div; break;
-                case '^': prog->func[ocount] = f_pow; break;
+                switch (expr[i]) {
+                case '+': _program[_oCount] = f_add; break;
+                case '-': _program[_oCount] = f_sub; break;
+                case '*': _program[_oCount] = f_mul; break;
+                case '/': _program[_oCount] = f_div; break;
+                case '^': _program[_oCount] = f_pow; break;
                 }
-                if (IsRegister(obj1))
-                    prog->a[ocount] = &(reg[strchr(registers, obj1[0]) - &registers[0]]);
-                if (IsRegister(obj2))
-                    prog->b[ocount] = &(reg[strchr(registers, obj2[0]) - &registers[0]]);
-                else if (IsNumber(obj2)) {
-                    prog->z[ocount] = atof(obj2);
-                    prog->b[ocount] = &(prog->z[ocount]);
-                } else if (IsVar(obj2, prog))
-                    prog->b[ocount] = &(prog->varvalues[VarNr(obj2, prog)]);
-                else {
-                    sprintf_s(errorMsg, maxErrorLen, "Unknown object B %s", obj2);
-                    FreeObjs(obj1, obj2, priori, suba);
+                if (isRegister(obj1)) {
+                    _a[_oCount] = &_reg[strindex(registers, obj1[0])];
+                }
+                if (isRegister(obj2)) {
+                    _b[_oCount] = &_reg[strindex(registers, obj2[0])];
+                }  else if (isNumber(obj2)) {
+                    _z[_oCount] = atof(obj2.c_str());
+                    _b[_oCount] = &_z[_oCount];
+                } else if (isVar(obj2)) {
+                    _b[_oCount] = &_varValues[varNumber(obj2)];
+                } else {
+                    sprintf_s(errorMsg, maxErrorLen, "Unknown object B %s", obj2.c_str());
                     return 1;
                 }
-                if (strlen(obj2) + strlen(obj1) > strlen(a)) {
-                    sprintf_s(errorMsg, maxErrorLen, "Internal error #4"); FreeObjs(obj1, obj2, priori, suba);
+                if (obj2.size() + obj1.size() > expr.size()) {
+                    sprintf_s(errorMsg, maxErrorLen, "Internal error #4"); 
                     return 1;
-                } else memset(a + i - strlen(obj1) + 1, ' ', strlen(obj2) + strlen(obj1));
-                ocount++;
-                if (ocount > progtype::maxComplication) {
-                    sprintf_s(errorMsg, maxErrorLen, "Formula too complex."); FreeObjs(obj1, obj2, priori, suba);
+                } else {
+                    size_t numSpaces = obj1.size() + obj2.size();
+                    expr.replace(i - obj1.size() + 1, numSpaces, numSpaces, ' ');
+                }
+                _oCount++;
+                if (_oCount > progtype::maxComplication) {
+                    sprintf_s(errorMsg, maxErrorLen, "Formula too complex.");
                     return 1;
                 }
             }
         }
     }
     if (0 == sign) {
-        if (IsRegister(a)) {
-            errorMsg[0] = 0;
-            FreeObjs(obj1, obj2, priori, suba);
+        if (isRegister(expr)) {
+            errorMsg[0] = '\0';
             return 0;
         }
-        if (IsNumber(a)) {
-            prog->func[ocount] = f_set;
-            prog->a[ocount] = &(reg[regscount]);
-            prog->b[ocount] = &(prog->z[ocount]);
-            prog->z[ocount] = atof(a);
-            memset(a, ' ', strlen(a));
-            a[0] = registers[regscount];
-            ocount++; regscount++;
-        } else if (IsVar(a, prog)) {
-            prog->func[ocount] = f_set;
-            prog->a[ocount] = &(reg[regscount]);
-            prog->b[ocount] = &(prog->varvalues[VarNr(a, prog)]);
-            memset(a, ' ', strlen(a));
-            a[0] = registers[regscount];
-            ocount++; regscount++;
+        if (isNumber(expr)) {
+            _program[_oCount] = f_set;
+            _a[_oCount] = &_reg[_regsCount];
+            _b[_oCount] = &_z[_oCount];
+            _z[_oCount] = atof(expr.c_str());
+            size_t numSpaces = expr.size();
+            expr.replace(0, numSpaces, numSpaces, ' ');
+            expr[0] = registers[_regsCount];
+            _oCount++; 
+            _regsCount++;
+        } else if (isVar(expr)) {
+            _program[_oCount] = f_set;
+            _a[_oCount] = &_reg[_regsCount];
+            _b[_oCount] = &_varValues[varNumber(expr)];
+            size_t numSpaces = expr.size();
+            expr.replace(0, numSpaces, numSpaces, ' ');
+            expr[0] = registers[_regsCount];
+            _oCount++; _regsCount++;
         } else {
-            sprintf_s(errorMsg, maxErrorLen, "Unknown object C %s", a);
-            FreeObjs(obj1, obj2, priori, suba);
+            sprintf_s(errorMsg, maxErrorLen, "Unknown object C %s", expr.c_str());
             return 1;
         }
-        if (ocount > progtype::maxComplication) {
+        if (_oCount > progtype::maxComplication) {
             sprintf_s(errorMsg, maxErrorLen, "Formula too complex.");
-            FreeObjs(obj1, obj2, priori, suba);
             return 1;
         }
     }
-    errorMsg[0] = 0;
-    FreeObjs(obj1, obj2, priori, suba);
+    errorMsg[0] = '\0';
     return 0;
 }
 
-int Translate(char* errorMsg, size_t maxErrorLen, const char* aa, progtype* prog) {
-    unsigned int i, j;
-    int brcount = 0, error;
-    char a[256];
+int progtype::compile(char* errorMsg, size_t maxErrorLen, const char* expr) {
+    assert(_CrtCheckMemory());
+    size_t exprLen = strlen(expr) + 1;
+    std::string cleanExpr;
 
-    errorMsg[0] = 0;
-    /* strcpy(a,aa);*/
-    j = 0;
-    for (i = 0; i < strlen(aa) && aa[i] != '#'; i++)
-        if (aa[i] != ' ') {
-            a[j] = tolower((int)*(aa + i));
+    errorMsg[0] = '\0';
+    int j = 0;
+    for (int i = 0; i < strlen(expr) && expr[i] != '#'; i++) {
+        if (!isspace(expr[i])) {
+            cleanExpr.push_back(tolower(expr[i]));
             j++;
         }
-    a[j] = 0;
-    for (i = 0; i < strlen(a); i++) {
-        if (a[i] == '(') brcount++;
-        if (a[i] == ')') brcount--;
+    }
+    cleanExpr[j] = '\0';
+    int brcount = 0;
+    for (int i = 0; i < cleanExpr.size(); i++) {
+        if (cleanExpr[i] == '(') brcount++;
+        if (cleanExpr[i] == ')') brcount--;
         /* error with brackets */
         if (brcount < 0) {
-            sprintf_s(errorMsg, maxErrorLen, "closed before open bracket error");
-            return(255);
+            sprintf_s(errorMsg, maxErrorLen, "Too many closing parentheses.");
+            return 255;
         }
     }
     if (brcount != 0) {
-        sprintf_s(errorMsg, maxErrorLen, "open brackets error");
-        return(255);
+        sprintf_s(errorMsg, maxErrorLen, "Missing close parenthesis.");
+        return 255;
     }
-    regscount = 0; 
-    ocount = 0;
-    error = DoTranslate(errorMsg, maxErrorLen, a, sizeof(a), prog);
+    _regsCount = 0; 
+    _oCount = 0;
+    int error = doTranslate(errorMsg, maxErrorLen, cleanExpr);
+    if (0 != error) {
+        assert(false);
+    }
     if (strlen(errorMsg) == 0) {
         sprintf_s(errorMsg, maxErrorLen, "Parsing OK");
     }
-    prog->func[ocount] = NULL;
-    return(error);
+    _program[_oCount] = NULL;
+    //assert(_CrtCheckMemory());
+    return error;
 }

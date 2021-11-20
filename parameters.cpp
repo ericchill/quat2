@@ -2,15 +2,15 @@
 #include <iostream>
 
 
-base_struct::base_struct(json::value const& jv) {
-    _O = json::value_to<vec3>(jv.at("O"));
-    _x = json::value_to<vec3>(jv.at("x"));
-    _y = json::value_to<vec3>(jv.at("y"));
-    _z = json::value_to<vec3>(jv.at("z"));
+ViewBasis::ViewBasis(json::value const& jv) {
+    _O = json::value_to<Vec3>(jv.at("O"));
+    _x = json::value_to<Vec3>(jv.at("x"));
+    _y = json::value_to<Vec3>(jv.at("y"));
+    _z = json::value_to<Vec3>(jv.at("z"));
 }
 
 
-json::value base_struct::toJSON() const {
+json::value ViewBasis::toJSON() const {
     return {
             { "O", _O },
             { "x", _x },
@@ -19,15 +19,15 @@ json::value base_struct::toJSON() const {
     };
 }
 
-base_struct tag_invoke(const json::value_to_tag< base_struct >&, json::value const& jv) {
-    return base_struct(jv);
+ViewBasis tag_invoke(const json::value_to_tag< ViewBasis >&, json::value const& jv) {
+    return ViewBasis(jv);
 }
 
 void FractalSpec::reset() {
     _c = 0;
     _bailout = 16;
     _maxiter = 12;
-    _lvalue = 0;
+    _lTerm = 0;
     _formula = 0;
     for (int i = 0; i < numPowers; i++) {
         _p[i] = 0;
@@ -36,7 +36,7 @@ void FractalSpec::reset() {
 
 void FractalSpec::print() const {
     std::cout << "(" << _c[0] << "," << _c[1] << "," << _c[2] << "," << _c[3] << "), "
-        << _bailout << ", " << _maxiter << ", " << _lvalue << ", " << _formula << std::endl;
+        << _bailout << ", " << _maxiter << ", " << _lTerm << ", " << _formula << std::endl;
     for (int j = 0; j < numPowers; ++j) {
         std::cout << "Parameter " << j << ": ";
         for (int i = 0; i < 4; ++i) {
@@ -52,7 +52,7 @@ json::value FractalSpec::toJSON() const {
             {"bailout", _bailout},
             {"maxiter", _maxiter},
             {"lastiter", _lastiter},
-            {"lvalue", _lvalue},
+            {"lvalue", _lTerm},
             {"formula", _formula},
             {"p1", _p[0]},
             {"p2", _p[1]},
@@ -84,9 +84,9 @@ FractalView::FractalView(const FractalView& f) {
 }
 
 void FractalView::reset() {
-    _s = vec3(0, 0, -2);
-    _up = vec3(0, -1, 0);
-    _light = vec3(-2, -5, -5);
+    _s = Vec3(0, 0, -2);
+    _up = Vec3(0, -1, 0);
+    _light = Vec3(-2, -5, -5);
     _Mov[0] = 0;
     _Mov[1] = 0;
     _LXR = 2.8;
@@ -111,10 +111,10 @@ void FractalView::print() const {
 
 FractalView::FractalView(const json::value& jv) {
     const json::object& obj = jv.as_object();
-    _s = json::value_to<vec3>(jv.at("s"));
-    _s = json::value_to<vec3>(obj.at("s"));
-    _up = json::value_to<vec3>(obj.at("up"));
-    _light = json::value_to<vec3>(obj.at("light"));
+    _s = json::value_to<Vec3>(jv.at("s"));
+    _s = json::value_to<Vec3>(obj.at("s"));
+    _up = json::value_to<Vec3>(obj.at("up"));
+    _light = json::value_to<Vec3>(obj.at("light"));
     _Mov[0] = obj.at("mov0").to_number<double>();
     _Mov[1] = obj.at("mov1").to_number<double>();
     _LXR = obj.at("LXR").to_number<double>();
@@ -193,7 +193,7 @@ size_t CutSpec::count() const {
     return _count;
 }
 
-bool CutSpec::getPlane(size_t i, vec3& normal, vec3& point) const {
+bool CutSpec::getPlane(size_t i, Vec3& normal, Vec3& point) const {
     if (i < _count) {
         normal = _normal[i];
         point = _point[i];
@@ -202,7 +202,7 @@ bool CutSpec::getPlane(size_t i, vec3& normal, vec3& point) const {
     return false;
 }
 
-bool CutSpec::setPlane(size_t i, const vec3& normal, const vec3 point) {
+bool CutSpec::setPlane(size_t i, const Vec3& normal, const Vec3& point) {
     if (i + 1 >= maxCuts) {
         return false;
     }
@@ -214,7 +214,7 @@ bool CutSpec::setPlane(size_t i, const vec3& normal, const vec3 point) {
     return true;
 }
 
-bool CutSpec::addPlane(const vec3& normal, const vec3& point) {
+bool CutSpec::addPlane(const Vec3& normal, const Vec3& point) {
     if (_count < maxCuts) {
         _normal[_count] = normal;
         _point[_count] = point;
@@ -236,9 +236,9 @@ bool CutSpec::deletePlane(size_t i) {
     return false;
 }
 
-bool CutSpec::cutaway(const vec3 x) const {
+bool CutSpec::cutaway(const Vec3 x) const {
     for (unsigned i = 0; i < _count; i++) {
-        vec3 y = x - _point[i];
+        Vec3 y = x - _point[i];
         if (_normal[i].dot(y) > 0) {
             return true;
         }
@@ -247,11 +247,11 @@ bool CutSpec::cutaway(const vec3 x) const {
 }
 
 bool CutSpec::cutnorm(const Quat& x1, const Quat& x2, Quat& nq) const {
-    vec3 n;
+    Vec3 n;
 
     for (size_t i = 0; i < _count; i++) {
-        vec3 y1 = vec3(x1) - _point[i];
-        Quat y2 = vec3(x2) - _point[i];
+        Vec3 y1 = Vec3(x1) - _point[i];
+        Quat y2 = Vec3(x2) - _point[i];
         int sign1 = (_normal[i].dot(y1) > 0) ? 1 : -1;
         int sign2 = (_normal[i].dot(y2) > 0) ? 1 : -1;
         if (sign1 != sign2) {
@@ -267,8 +267,8 @@ CutSpec::CutSpec(const json::value& jv) {
     const json::array cuts = jv.as_array();
     for (size_t i = 0; i < cuts.size(); i++) {
         const json::value cut = cuts.at(i);
-        _normal[i] = json::value_to<vec3>(cut.at("normal"));
-        _point[i] = json::value_to<vec3>(cut.at("normal"));
+        _normal[i] = json::value_to<Vec3>(cut.at("normal"));
+        _point[i] = json::value_to<Vec3>(cut.at("normal"));
     }
     _count = cuts.size();
 }

@@ -51,7 +51,7 @@ void ObjectEditor::cb_maxiter(Fl_Value_Input* o, void* v) {
 }
 
 void ObjectEditor::cb_lvalue_i(Fl_Value_Input* o, void*) {
-    frac._lvalue = VD(o);
+    frac._lTerm = VD(o);
     o->color(FL_WHITE);
     if (fabs(VD(o)) > 2.0) o->color(FL_YELLOW);
     if (fabs(VD(o)) >= 1000000.0) o->color(FL_RED);
@@ -434,7 +434,7 @@ ObjectEditor::ObjectEditor(int X, int Y, int W, int H, const char* label) : Fl_G
 void ObjectEditor::set(const FractalSpec& f) {
     frac = f;
     maxiter->value(f._maxiter); maxiter->do_callback();
-    lvalue->value(f._lvalue); lvalue->do_callback();
+    lvalue->value(f._lTerm); lvalue->do_callback();
     bailout->value(f._bailout); bailout->do_callback();
     formula->value(f._formula); formula->do_callback(); // Also calls formula_changed()
     cre->value(f._c[0]); cre->do_callback();

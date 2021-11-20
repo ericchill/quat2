@@ -202,7 +202,7 @@ int switch_callback(int argc, char* argv[], int& i) {
     // regular callback
     string s(argv[i]);
 
-    // Seems not to be a file, but an option?
+    // Seems not to be _a file, but an option?
     if ('-' == s[0]) {
         return 0;
     }

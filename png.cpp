@@ -36,7 +36,7 @@ static uint8_t PaethPredictor(long a, long b, long c);
 
 /* NOTE: In this (new) version of PNG.C the buffer "_readbuf" in */
 /* png_internal_struct is allocated via malloc */
-/* a call of EndPNG() is needed after use of these structure */
+/* a call of endPNG() is needed after use of these structure */
 /* to deallocate the buffer */
 
 uint8_t png_signature[8] = { 137, 80, 78, 71, 13, 10, 26, 10 };
@@ -146,7 +146,7 @@ PNGFile::~PNGFile() {
     }
 }
 
-int PNGFile::GetNextChunk() {
+int PNGFile::getNextChunk() {
     if (1 == _position) {
         fseek(_fd, (long)_length + 4, SEEK_CUR);
     } else if (2 == _position) {
@@ -158,7 +158,7 @@ int PNGFile::GetNextChunk() {
     return 0;
 }
 
-int PNGFile::ReadChunkData(uint8_t* mem) {
+int PNGFile::readChunkData(uint8_t* mem) {
     unsigned long checksum;
 
     if (_position != 1) {
@@ -196,7 +196,7 @@ int PNGFile::do_inflate() {
     return err;
 }
 
-int PNGFile::ReadPNGLine(unsigned char* Buf) {
+int PNGFile::readPNGLine(unsigned char* Buf) {
     size_t toread;
     int err;
     int bytesPerPixel;
@@ -290,7 +290,7 @@ int PNGFile::ReadPNGLine(unsigned char* Buf) {
 }
 
 
-int PNGFile::DoUnFiltering(uint8_t* Buf, uint8_t* Buf_up) {
+int PNGFile::doUnFiltering(uint8_t* Buf, uint8_t* Buf_up) {
     unsigned long bytesPerPixel;
     long up, prior, upperleft;
 
@@ -356,7 +356,7 @@ int PNGFile::DoUnFiltering(uint8_t* Buf, uint8_t* Buf_up) {
     return 0;
 }
 
-int PNGFile::DoFiltering(unsigned char* Buf) {
+int PNGFile::doFiltering(unsigned char* Buf) {
     if (0 == Buf[0]) {
         return 0; /* No filter */
     }
@@ -372,7 +372,7 @@ int PNGFile::DoFiltering(unsigned char* Buf) {
     return 0;
 }
 
-int PNGFile::InitWritePNG(FILE* png) {
+int PNGFile::initWritePNG(FILE* png) {
     unsigned long length, crc_v;
     unsigned char Buf[20];
 
@@ -411,7 +411,7 @@ int PNGFile::InitWritePNG(FILE* png) {
     return 0;
 }
 
-bool PNGFile::WriteChunk(unsigned char* buf, size_t size) {
+bool PNGFile::writeChunk(unsigned char* buf, size_t size) {
     uint32_t crc_v;
     uint8_t longBuf[sizeof(uint32_t)];
 
@@ -456,7 +456,7 @@ int PNGFile::do_deflate() {
     return err;
 }
 
-int PNGFile::WritePNGLine(uint8_t* Buf) {
+int PNGFile::writePNGLine(uint8_t* Buf) {
     int err;
     int bytesPerPixel;
 
@@ -495,12 +495,12 @@ int PNGFile::WritePNGLine(uint8_t* Buf) {
     return 0;
 }
 
-int PNGFile::EndIDAT() {
+int PNGFile::endIDAT() {
     int err;
     uint8_t longBuf[sizeof(uint32_t)];
 
     if (NULL == _readbuf) {
-        return -1;  /* EndIDAT called too early */
+        return -1;  /* endIDAT called too early */
     }
     do {
         _d_stream.next_out = _readbuf;
@@ -531,17 +531,17 @@ int PNGFile::EndIDAT() {
     return 0;
 }
 
-int PNGFile::PosOverIEND() {
+int PNGFile::posOverIEND() {
     PNGFile last;
 
     while (0 != memcmp(_chunk_type, image_end_label, sizeof(_chunk_type))) {
-        GetNextChunk();
+        getNextChunk();
     }
     fseek(_fd, -8, SEEK_CUR);
     return 0;
 }
 
-int PNGFile::PosOverIHDR() {
+int PNGFile::posOverIHDR() {
     fseek(_fd, 8, SEEK_SET);
     _length = readLong(_fd);
     fread_s(_chunk_type, sizeof(_chunk_type), 1, sizeof(_chunk_type), _fd);

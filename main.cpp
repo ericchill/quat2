@@ -23,7 +23,9 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
-
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
 #include <FL/Fl.H>
 #include <FL/Fl_File_Icon.H>
 
@@ -31,7 +33,7 @@
 #include "kernel.h"
 
 int main(int argc, char **argv) {
-	if (!initGPU()) {
+	if (!initGPU(argc, argv)) {
 		return -1;
 	}
 	Fl::visual(FL_DOUBLE|FL_INDEX);

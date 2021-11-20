@@ -244,7 +244,6 @@ OtherEditor::OtherEditor(int X, int Y, int W, int H, const char* label) : Fl_Gro
     o->clear_border();
     o->end();
     }
-    //memset(&_view, 0, sizeof(_view));
     end(); // VERY IMPORTANT!
     win->position(X + 2, Y + 2);
     // DON'T delete win in destructor (or elsewhere) 

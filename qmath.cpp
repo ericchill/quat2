@@ -28,18 +28,18 @@
 #include "qmath.h"
 #include <math.h>
 
-void tag_invoke(const json::value_from_tag&, json::value& jv, vec3 const& t) {
+void tag_invoke(const json::value_from_tag&, json::value& jv, Vec3 const& t) {
     jv = { t[0], t[1], t[2] };
 }
 
-vec3 tag_invoke(const json::value_to_tag< vec3 >&, json::value const& jv) {
-    return vec3(
+Vec3 tag_invoke(const json::value_to_tag< Vec3 >&, json::value const& jv) {
+    return Vec3(
         jv.as_array().at(0).to_number<double>(),
         jv.as_array().at(1).to_number<double>(),
         jv.as_array().at(2).to_number<double>());
 }
 
-std::ostream& operator<<(std::ostream& oo, const vec3& v) {
+std::ostream& operator<<(std::ostream& oo, const Vec3& v) {
     oo << "(" << v[0] << ", " << v[1] << ", " << v[2] << ")";
     return oo;
 }

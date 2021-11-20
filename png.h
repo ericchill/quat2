@@ -69,11 +69,11 @@ public:
 
     /* Reads length and chunk type of next chunk in file */
     /* and sets fields length and chunk_type */
-    int GetNextChunk();
+    int getNextChunk();
     /* Reads data of a chunk. It is required that the length and header */
     /* of the chunk has already been read. If not, function returns */
     /* -1. -2 indicates an invalid CRC */
-    int ReadChunkData(uint8_t* mem);
+    int readChunkData(uint8_t* mem);
     /* is used to call the function for decompressing of zlib */
     /* returns return code of zlib and 10 if Z_STREAM_END */
     int do_inflate();
@@ -81,23 +81,22 @@ public:
     /* -1 if file position isn't at the beginning of an IDAT chunk */
     /* -2 CRC error */
     /* -3 if the next chunk needed to reconstruct line isn't IDAT */
-    int ReadPNGLine(unsigned char* Buf);
-    /* This funtion is feeded with a line aquired by ReadPNGLine (*buf) */
+    int readPNGLine(unsigned char* Buf);
+    /* This funtion is feeded with a line aquired by readPNGLine (*buf) */
     /* It calculates filtered data -> raw data */
     /* Buf up is the raw date of the line above. May be NULL */
-    int DoUnFiltering(unsigned char* Buf, unsigned char* Buf_up);
-    int DoFiltering(unsigned char* Buf);
-    bool WriteChunk(unsigned char* Buf, size_t size = (size_t)-1);
-    int WritePNGLine(unsigned char* Buf);
+    int doUnFiltering(unsigned char* Buf, unsigned char* Buf_up);
+    int doFiltering(unsigned char* Buf);
+    bool writeChunk(unsigned char* Buf, size_t size = (size_t)-1);
+    int writePNGLine(unsigned char* Buf);
 
 
-    int InitWritePNG(FILE* png);
+    int initWritePNG(FILE* png);
 
-    int EndIDAT();
-    int EndPNG();
+    int endIDAT();
 
-    int PosOverIEND();
-    int PosOverIHDR();
+    int posOverIEND();
+    int posOverIHDR();
 
     void setChunkType(const uint8_t* chunkType);
     bool checkChunkType(const uint8_t* chunk_Type);
