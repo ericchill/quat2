@@ -21,7 +21,6 @@
 template<typename T=double>
 class alignas(16) vec3 {
     T _v[3];
-    T _pad;
 public:
     static constexpr size_t nComponents = 3;
 

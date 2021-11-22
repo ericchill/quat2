@@ -268,7 +268,7 @@ CutSpec::CutSpec(const json::value& jv) {
     for (size_t i = 0; i < cuts.size(); i++) {
         const json::value cut = cuts.at(i);
         _normal[i] = json::value_to<Vec3>(cut.at("normal"));
-        _point[i] = json::value_to<Vec3>(cut.at("normal"));
+        _point[i] = json::value_to<Vec3>(cut.at("point"));
     }
     _count = cuts.size();
 }

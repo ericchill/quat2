@@ -241,8 +241,7 @@ ocular_dist->do_callback();
 vre->do_callback(); vi->do_callback(); vj->do_callback();
 upre->do_callback(); upi->do_callback(); upj->do_callback();
 lxr->do_callback(); movex->do_callback(); movey->do_callback();
-
-return;} {}
+} {}
   }
   Function {get(view_cpp& v)} {return_type void
   } {
@@ -255,8 +254,7 @@ v._interocular = view._interocular;
 v._light = view._light;
 v._Mov[0] = view._Mov[0];
 v._Mov[1] = view._Mov[1];
-
-return;} {}
+} {}
   }
   decl {view_cpp view;} {}
   decl {ViewSelector *vs[3];} {}
@@ -278,7 +276,7 @@ return (vec_abs(c)==0.0);} {}
   } {
     code {double a = vec_abs(view.s);
 if (a==0.0 && !view.isStereo()) return 180.0;
-else if (a==0.0) return(ocular_angle->value());
+else if (a==0.0) return ocular_angle->value();
 else return atan(view._interocular/(2.0*a))*360.0/M_PI;} {}
   }
   Function {newdist()} {return_type double
@@ -321,7 +319,6 @@ if (oa_c != ocular_angle->color()) { ocular_angle->color(oa_c); ocular_angle->re
 
 if (!view.isStereo() && stereo->active()) stereo->deactivate();
 if (view.isStereo() && !stereo->active()) stereo->activate();
-
-return;} {}
+} {}
   }
 } 

@@ -125,7 +125,7 @@ int iternorm_0(iter_struct* is, Vec3& norm) {
 }
 
 
-int iterate_1(struct iter_struct* is) {
+int iterate_1(iter_struct* is) {
 
     double re2, pure2;
     int iter, olditer;
@@ -189,7 +189,7 @@ int iterate_1(struct iter_struct* is) {
 }
 
 
-int iterate_1_no_orbit(struct iter_struct* is) {
+int iterate_1_no_orbit(iter_struct* is) {
     double ce, ci, cj, ck;
 
     Quat isxstart = is->xstart;
@@ -332,7 +332,7 @@ int iternorm_1(iter_struct* is, Vec3& norm) {
 }
 
 
-int iterate_2(struct iter_struct* is) {
+int iterate_2(iter_struct* is) {
 
     double re2, pure2, pure;
     double lntv;
@@ -391,7 +391,7 @@ int iterate_2(struct iter_struct* is) {
     return iter;
 }
 
-int iterate_3(struct iter_struct* is) {
+int iterate_3(iter_struct* is) {
     Quat x2;
     double re2 = 0.0, pure2 = 0.0;
     int iter = 0, olditer = 0;
@@ -443,7 +443,7 @@ int iterate_3(struct iter_struct* is) {
     return iter;
 }
 
-int iterate_3_no_orbit(struct iter_struct* is) {
+int iterate_3_no_orbit(iter_struct* is) {
     double bailout = is->bailout;
     int maxiter = is->maxiter;
     Quat c = is->c;
@@ -477,7 +477,7 @@ int iterate_3_no_orbit(struct iter_struct* is) {
 }
 
 
-int iterate_4(struct iter_struct* is) {
+int iterate_4(iter_struct* is) {
     double bailout = is->bailout;
     int maxiter = is->maxiter;
 
@@ -535,7 +535,7 @@ void bulbSquare1(Quat& result, const Quat& value) {
 void buldSquare2(double* result, const double* value) {
 }
 
-int iterate_bulb(struct iter_struct* is) {
+int iterate_bulb(iter_struct* is) {
     /*
         { cx + (2 (x - y) (x + y) _z) / (x^2 + y^2),
           cy + (4 x y _z) / (x^2 + y^2),
@@ -905,7 +905,7 @@ float calc_struct::brightpoint(long x, int y, double* lBuf) {
     return static_cast<float>(bBuf);
 }
 
-void object_distance_kernel(calc_struct& cs, const Quat& xStart, const Quat& zBase, const int *zLimits, int& zResults) {
+void object_distance_cpu_kernel(calc_struct& cs, const Quat& xStart, const Quat& zBase, const int *zLimits, int& zResults) {
     if (zLimits[0] == -1) {
         zResults = -1;
         return;
@@ -929,7 +929,7 @@ void object_distance_kernel(calc_struct& cs, const Quat& xStart, const Quat& zBa
 
 void getObjectDistances(calc_struct& cs, int N, const Quat* xStarts, const Quat& zBase, const int(*zLimits)[2], int* zResults) {
     for (int i = 0; i < N; i++) {
-        object_distance_kernel(cs, xStarts[i], zBase, zLimits[i], zResults[i]);
+        object_distance_cpu_kernel(cs, xStarts[i], zBase, zLimits[i], zResults[i]);
     }
 }
 
@@ -954,7 +954,7 @@ int calc_struct::calcline2(
     double* lBuf, float* bBuf, float* cBuf,
     ZFlag zflag) {
     long x, xaa, yaa;
-    struct iter_struct is;
+    iter_struct is;
     int antialiasing = _v._antialiasing;
 
     assert(GlobalOrbit != NULL);
@@ -969,17 +969,79 @@ int calc_struct::calcline2(
     }
     is.orbit = &GlobalOrbit[1];
     is.xstart[3] = _f._lTerm;
+    _xs = _xp + (x1 - 1) * _sbase._x;
     LexicallyScopedRangeCheckedStorage<int[2]> zRanges(x2 - x1 + 1);
     LexicallyScopedRangeCheckedStorage<Quat> xStarts(x2 - x1 + 1);
-    _xs = _xp + (x1 - 1) * _sbase._x;
-    for (x = x1; x <= x2; x++) {
-        _xs += _sbase._x;
-        xStarts[x - x1] = _xs;
-        obj_distance_search_range(zRanges[x - x1][0], zRanges[x - x1][1]);
+    if (0 == _cuts.count()) {
+        for (x = x1; x <= x2; x++) {
+            _xs += _sbase._x;
+            xStarts[x - x1] = _xs;
+            zRanges[x - x1][0] = 0;
+            zRanges[x - x1][1] = _v._zres;
+        }
+    } else {
+        for (x = x1; x <= x2; x++) {
+            _xs += _sbase._x;
+            xStarts[x - x1] = _xs;
+            obj_distance_search_range(zRanges[x - x1][0], zRanges[x - x1][1]);
+        }
     }
     LexicallyScopedRangeCheckedStorage<int> zStarts(x2 - x1 + 1);
     row_of_obj_distance_driver(*this, x2 - x1 + 1, xStarts.ptr(), _sbase._z, zRanges.ptr(), zStarts.ptr());
-
+#ifdef USE_MORE_GPU
+    size_t numSamples = (x2 - x1 + 1) * antialiasing * antialiasing;
+    LexicallyScopedPtr<Quat> manyOrbits = new Quat[numSamples * (_f._maxiter + 2)];
+    LexicallyScopedPtr<int> newZStarts = new int[numSamples];
+    LexicallyScopedPtr<int> lBufIdxs = new int[numSamples];
+    LexicallyScopedPtr<Quat> newXStarts = new Quat[numSamples];
+    _xs = _xp + (x1 - 1) * _sbase._x;
+    int sampleIdx = 0;
+    for (x = x1; x <= x2; x++) {
+        _xs += _sbase._x;
+        _xcalc = _xs;
+        int zStart = zStarts[x - x1];
+        if (-1 != zStart) {
+            int lbufIdx = (x + _v._xres) * antialiasing;
+            newZStarts[sampleIdx] = zStart;
+            lBufIdxs[sampleIdx] = lbufIdx;
+            newXStarts[sampleIdx] = _xcalc;
+            sampleIdx++;
+            for (yaa = 0; yaa < antialiasing; yaa++) {
+                for (xaa = 0; xaa < antialiasing; xaa++) {
+                    if (xaa != 0 || yaa != 0) {
+                        newZStarts[sampleIdx] = zStart;
+                        _xcalc = _xs + yaa * _aabase._y + xaa * _aabase._y;
+                        newXStarts[sampleIdx] = _xcalc;
+                        lBufIdxs[sampleIdx] = ((yaa + 1) * _v._xres + x) * antialiasing + xaa;
+                        sampleIdx++;
+                    }
+                }
+            }
+        }
+    }
+    size_t totalSamples = sampleIdx;
+#endif
+    _xs = _xp + (x1 - 1) * _sbase._x;
+    for (x = x1; x <= x2; x++) {
+        _xs += _sbase._x;
+        _xcalc = _xs;
+        int zStart = zStarts[x - x1];
+        if (-1 != zStart) {
+            int lbufIdx = (x + _v._xres) * antialiasing;
+            lBuf[lbufIdx] = obj_distance(zStart);
+            double itersum = 0;
+            for (yaa = 0; yaa < antialiasing; yaa++) {
+                for (xaa = 0; xaa < antialiasing; xaa++) {
+                    if (xaa != 0 || yaa != 0) {
+                        _xcalc = _xs + yaa * _aabase._y + xaa * _aabase._y;
+                        lBuf[((yaa + 1) * _v._xres + x) * antialiasing + xaa] = obj_distance(zStart);
+                        itersum += _f._lastiter;
+                    }
+                }
+            }
+            _f._lastiter = itersum / (antialiasing * antialiasing);
+        }
+    }
     _xs = _xp + (x1 - 1) * _sbase._x;
     for (x = x1; x <= x2; x++) {
         _xs += _sbase._x;
@@ -1051,7 +1113,7 @@ int calc_struct::calcline(
     double* lBuf, float* bBuf, float* cBuf,
     ZFlag zflag) {
     long x, xaa, yaa;
-    struct iter_struct is;
+    iter_struct is;
     int antialiasing = _v._antialiasing;
 
     assert(GlobalOrbit != NULL);
@@ -1117,10 +1179,10 @@ extern progtype prog;
 /* finds color for the point c->xq */
 float calc_struct::colorizepoint() {
     /* Handles for variables */
-    static unsigned char xh = 255, yh = 255, zh = 255, wh = 255;
-    static unsigned char xbh = 255, ybh = 255, zbh = 255, wbh = 255;
-    static unsigned char mih = 255, lih = 255;
-    static unsigned char pih = 255;
+    static size_t xh = progtype::nullHandle, yh = progtype::nullHandle, zh = progtype::nullHandle, wh = progtype::nullHandle;
+    static size_t xbh = progtype::nullHandle, ybh = progtype::nullHandle, zbh = progtype::nullHandle, wbh = progtype::nullHandle;
+    static size_t mih = progtype::nullHandle, lih = progtype::nullHandle;
+    static size_t pih = progtype::nullHandle;
     char notdef;
     /*, diffrh=255, eorbith = 255, jorbith = 255, korbith = 255; */
     /* unsigned char lorbith = 255, closestith = 255; */

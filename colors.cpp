@@ -84,6 +84,7 @@ RealPalette::RealPalette(const RealPalette& r) {
         _cols[i] = r._cols[i];
     }
     _nColors = r._nColors;
+    _weightSum = r._weightSum;
 }
 
 void RealPalette::reset() {
@@ -99,8 +100,10 @@ void RealPalette::reset() {
 
 RealPalette::RealPalette(const json::value& jv) {
     json::array colors = jv.as_object().at("colors").as_array();
+    _weightSum = 0;
     for (size_t i = 0; i < colors.size(); i++) {
         _cols[i] = col_struct(colors.at(i));
+        _weightSum += _cols[i].weight;
     }
     _nColors = colors.size();
 

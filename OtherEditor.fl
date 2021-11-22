@@ -41,8 +41,7 @@ decl {\#include "ViewSelector.h"} {}
 decl {class ViewSelector;} {public
 } 
 
-decl {\#include "common.h"} {public
-} 
+
 
 class OtherEditor {open : {public Fl_Group}
 } {
@@ -169,8 +168,7 @@ ambient->value(v.ambient); antialiasing->value(v.antialiasing);
 // Callbacks & checkValidity
 xres->do_callback();
 yres->do_callback();
-
-return;} {}
+} {}
   }
   Function {get(view_struct& v)} {return_type void
   } {
@@ -183,8 +181,7 @@ v.zres = static_cast<int>(view.zres);
 v.phongmax = view.phongmax; v.phongsharp = view.phongsharp;
 v.ambient = view.ambient; 
 v.antialiasing = static_cast<int>(view.antialiasing);
-
-return;} {}
+} {}
   }
   Function {checkValidity()} {return_type void
   } {
@@ -210,8 +207,7 @@ if (phongmax->color() != pm_c) { phongmax->color(pm_c); phongmax->redraw(); }
 if (phongsharp->color() != ps_c) { phongsharp->color(ps_c); phongsharp->redraw(); }
 if (ambient->color() != amb_c) { ambient->color(amb_c); ambient->redraw(); }
 if (antialiasing->color() != ant_c) { antialiasing->color(ant_c); antialiasing->redraw(); }
-
-return;} {}
+} {}
   }
   decl {view_struct view;} {}
   decl {ViewSelector *vs[3];} {}

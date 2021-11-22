@@ -260,8 +260,7 @@ MP->CalcImage(); MP->CheckUpdate();} {}
   }
   Function {get(frac_cpp& f)} {return_type void
   } {
-    code {f = frac;
-return;} {}
+    code {f = frac;} {}
   }
   Function {formula_changed()} {return_type void
   } {

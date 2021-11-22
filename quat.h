@@ -9,15 +9,15 @@
 
 
 /* DUMMY function prototypes */
-int DUMMY_Initialize(int x, int y, char* Error);
+int DUMMY_Initialize(std::ostream& errorMsg, int x, int y);
 int DUMMY_Done();
 int DUMMY_getline(unsigned char* line, int y, long xres, ZFlag whichbuf);
 int DUMMY_check_event(void);
 int DUMMY_Change_Name(const char* s);
 void DUMMY_eol(int line);
 
-int ParseAndCalculate(const char* file, char* Error, char zflag);
-int TranslateColorFormula(const char* colscheme, char* ErrorMSG, size_t maxErrorLen);
+int ParseAndCalculate(std::ostream& errorMsg, const char* file, char zflag);
+int TranslateColorFormula(std::ostream& errorMsg, const char* colscheme);
 int formatExternToIntern(FractalSpec& frac, FractalView& view);
 int formatInternToExtern(FractalSpec& frac, FractalView& view);
 
@@ -29,8 +29,7 @@ public:
 
 /* Creates image from given parameters. Wants external format of frac & view */
 int CreateImage(
-    char* Error,
-    size_t maxErrorLen,
+    std::ostream& errorMsg,
     int* xstart, int* ystart,
     FractalPreferences& prefs,
     int pixelsPerCheck,
@@ -41,8 +40,7 @@ int CreateImage(
    frac & view
 */
 int CreateZBuf(
-    char* Error,
-    size_t maxErrorLen,
+    std::ostream& errorMsg,
     int* xstart,
     int* ystart,
     FractalPreferences& fractal,
@@ -50,8 +48,7 @@ int CreateZBuf(
     LinePutter& lineDst);
 
 int InitGraphics(
-    char* Error,
-    size_t maxErrorLen,
+    std::ostream& errorMsg,
     FractalPreferences& fractal,
     bool ready,
     int* xadd, int* yadd, 
@@ -72,8 +69,7 @@ int InitGraphics(
 class PNGFile;
 
 int CalculateFractal(
-    char* Error,
-    size_t maxErrorLen,
+    std::ostream& errorMsg,
     char* pngfile,
     FILE** png,
     PNGFile* png_internal,

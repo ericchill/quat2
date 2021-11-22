@@ -96,8 +96,8 @@ char orbitl(double* a, const double* b) {
     return orbitComponent(a, b, 3);
 }
 
-int TranslateColorFormula(const char* colscheme, char* errorMSG, size_t maxErrorLen) {
-    unsigned char dummy;
+int TranslateColorFormula(std::ostream& errorMsg, const char* colscheme) {
+    size_t dummy;
     double ddummy;
 
     prog.reset();
@@ -108,18 +108,18 @@ int TranslateColorFormula(const char* colscheme, char* errorMSG, size_t maxError
 
     ddummy = 0;
 
-    dummy = 255; prog.setVariable("maxiter", &dummy, ddummy);
-    dummy = 255; prog.setVariable("lastiter", &dummy, ddummy);
+    dummy = progtype::nullHandle; prog.setVariable("maxiter", &dummy, ddummy);
+    dummy = progtype::nullHandle; prog.setVariable("lastiter", &dummy, ddummy);
 
-    dummy = 255; prog.setVariable("x", &dummy, ddummy);
-    dummy = 255; prog.setVariable("y", &dummy, ddummy);
-    dummy = 255; prog.setVariable("z", &dummy, ddummy);
-    dummy = 255; prog.setVariable("w", &dummy, ddummy);
+    dummy = progtype::nullHandle; prog.setVariable("x", &dummy, ddummy);
+    dummy = progtype::nullHandle; prog.setVariable("y", &dummy, ddummy);
+    dummy = progtype::nullHandle; prog.setVariable("z", &dummy, ddummy);
+    dummy = progtype::nullHandle; prog.setVariable("w", &dummy, ddummy);
 
-    dummy = 255; prog.setVariable("xb", &dummy, ddummy);
-    dummy = 255; prog.setVariable("yb", &dummy, ddummy);
-    dummy = 255; prog.setVariable("zb", &dummy, ddummy);
-    dummy = 255; prog.setVariable("wb", &dummy, ddummy);
+    dummy = progtype::nullHandle; prog.setVariable("xb", &dummy, ddummy);
+    dummy = progtype::nullHandle; prog.setVariable("yb", &dummy, ddummy);
+    dummy = progtype::nullHandle; prog.setVariable("zb", &dummy, ddummy);
+    dummy = progtype::nullHandle; prog.setVariable("wb", &dummy, ddummy);
 
     /*  prog.setVariable("diffr", &dummy, ddummy); */
     /*  prog.setVariable("eorbit", &dummy, ddummy);
@@ -128,9 +128,9 @@ int TranslateColorFormula(const char* colscheme, char* errorMSG, size_t maxError
     prog.setVariable("lorbit", &dummy, ddummy);
     prog.setVariable("closestit", &dummy, ddummy); */
 
-    dummy = 255; prog.setVariable("pi", &dummy, M_PI);
+    dummy = progtype::nullHandle; prog.setVariable("pi", &dummy, M_PI);
 
-    return prog.compile(errorMSG, maxErrorLen, colscheme) != 0 ? -1 : 0;
+    return prog.compile(errorMsg, colscheme) != 0 ? -1 : 0;
 }
 
 int formatExternToIntern(FractalSpec& spec, FractalView& view) {
@@ -168,8 +168,7 @@ int formatInternToExtern(FractalSpec& frac, FractalView& view) {
 }
 
 int InitGraphics(
-    char* Error,
-    size_t maxErrorLen,
+    std::ostream& errorMsg,
     FractalPreferences& fractal,
     bool ready,
     int* xadd, int* yadd,
@@ -189,7 +188,7 @@ int InitGraphics(
         j *= fractal.view()._antialiasing;
     }
 
-    if (Initialize != nullptr && Initialize(i, j, Error) != 0) {
+    if (Initialize != nullptr && Initialize(errorMsg, i, j) != 0) {
         return -1;
     }
     fractal.realPalette().computeWeightSum();
@@ -328,8 +327,7 @@ int CalculateFractalLine(
 }
 
 int CalculateFractal(
-    char* Error,
-    size_t maxErrorLen,
+    std::ostream& errorMsg,
     char* pngfile,
     FILE** png,
     PNGFile* png_internal,
@@ -367,7 +365,7 @@ int CalculateFractal(
     FractalSpec frac = fractal.fractal();
     FractalView view = fractal.view();
     if (formatExternToIntern(frac, view) != 0) {
-        sprintf_s(Error, maxErrorLen, "Error in view struct!");
+        errorMsg << "Error in view struct!";
         return -1;
     }
 
@@ -566,8 +564,7 @@ int CalculateFractal(
 }
 
 int CreateImage(
-    char* Error,
-    size_t maxErrorLen,
+    std::ostream& errorMsg,
     int* xstart, int* ystart, 
     FractalPreferences& fractal,
     int pixelsPerCheck,
@@ -578,15 +575,15 @@ int CreateImage(
 {
     ViewBasis rbase, srbase, lbase, slbase, cbase;
     int xadd, yadd;
-    char ErrorMSG[256];
+    std::stringstream nestedErrorMsg;
 
-    Error[0] = '\0';
-    if (TranslateColorFormula(fractal.colorScheme().get(), ErrorMSG, sizeof(ErrorMSG)) != 0) {
-        sprintf_s(Error, maxErrorLen, "Error in color scheme formula:\n%s\n", ErrorMSG);
+    if (TranslateColorFormula(nestedErrorMsg, fractal.colorScheme().get()) != 0) {
+        errorMsg << "Error in color scheme formula:" << std::endl;
+        errorMsg << nestedErrorMsg.str();
         return -1;
     }
     if (fractal.view().calcbase(&cbase, &srbase, WhichEye::Monocular) != 0) {
-        sprintf_s(Error, maxErrorLen, "Error in FractalView!\n");
+        errorMsg << "Error in FractalView!" << std::endl;
         return -1;
     }
 
@@ -594,16 +591,16 @@ int CreateImage(
 
     if (fractal.view().isStereo()) {
         if (fractal.view().calcbase(&rbase, &srbase, WhichEye::Right) != 0) {
-            sprintf_s(Error, maxErrorLen, "Error in FractalView (right eye)!\n");
+            errorMsg << "Error in FractalView (right eye)!" << std::endl;
             return -1;
         }
         if (fractal.view().calcbase(&lbase, &slbase, WhichEye::Left) != 0) {
-            sprintf_s(Error, maxErrorLen, "Error in FractalView (left eye)!\n");
+            errorMsg << "Error in FractalView (left eye)!" << std::endl;
             return -1;
         }
     }
 
-    if (InitGraphics(Error, maxErrorLen, fractal, false, &xadd, &yadd, zflag == ZFlag::NewZBuffer) != 0) {
+    if (InitGraphics(errorMsg, fractal, false, &xadd, &yadd, zflag == ZFlag::NewZBuffer) != 0) {
         return -1;
     }
 
@@ -611,7 +608,7 @@ int CreateImage(
         calc_time = 0;
     }
     return CalculateFractal(
-        Error, maxErrorLen, 
+        errorMsg, 
         NULL, NULL, NULL,
         zflag,
         xstart, ystart,
@@ -621,7 +618,7 @@ int CreateImage(
         lineDst);
 }
 
-int CreateZBuf(char* Error, size_t maxErrorLen, int* xstart, int* ystart, FractalPreferences& fractal, int pixelsPerCheck, LinePutter& lineDst)
+int CreateZBuf(std::ostream& errorMsg, int* xstart, int* ystart, FractalPreferences& fractal, int pixelsPerCheck, LinePutter& lineDst)
     /* Creates/Continues ZBuffer from given parameters. Wants external format of frac & view */
 {
     ViewBasis rbase, srbase, lbase, slbase, cbase;
@@ -637,9 +634,8 @@ int CreateZBuf(char* Error, size_t maxErrorLen, int* xstart, int* ystart, Fracta
         realpal._cols[0].col2[i] = 1;
     }
 
-    Error[0] = '\0';
     if (fractal.view().calcbase(&cbase, &srbase, WhichEye::Monocular) != 0) {
-        sprintf_s(Error, maxErrorLen, "Error in FractalView!\n");
+        errorMsg << "Error in FractalView!" << std::endl;
         return -1;
     }
 
@@ -647,20 +643,20 @@ int CreateZBuf(char* Error, size_t maxErrorLen, int* xstart, int* ystart, Fracta
 
     if (fractal.view().isStereo()) {
         if (fractal.view().calcbase(&rbase, &srbase, WhichEye::Right) != 0) {
-            sprintf_s(Error, maxErrorLen, "Error in FractalView (right eye)!\n");
+            errorMsg << "Error in FractalView (right eye)!" << std::endl;
             return -1;
         }
         if (fractal.view().calcbase(&lbase, &slbase, WhichEye::Left) != 0) {
-            sprintf_s(Error, maxErrorLen, "Error in FractalView (left eye)!\n");
+            errorMsg << "Error in FractalView (left eye)!" << std::endl;
             return -1;
         }
     }
     
-    if (InitGraphics(Error, maxErrorLen, fractal, false, &xadd, &yadd, true) != 0) {
+    if (InitGraphics(errorMsg, fractal, false, &xadd, &yadd, true) != 0) {
         return -1;
     }
 
-    i = CalculateFractal(Error, maxErrorLen, NULL, NULL, NULL,
+    i = CalculateFractal(errorMsg, NULL, NULL, NULL,
         ZFlag::NewZBuffer, xstart, ystart, pixelsPerCheck, &rbase, &srbase, &lbase,
         &slbase, fractal, lineDst);
 

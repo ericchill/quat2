@@ -36,12 +36,16 @@ public:
     }
 };
 
+
 template<typename T>
 class LexicallyScopedPtr {
     T* _ptr;
 public:
     LexicallyScopedPtr() : _ptr(nullptr) {}
     LexicallyScopedPtr(T* ptr) : _ptr(ptr) {}
+    LexicallyScopedPtr(size_t size) {
+        _ptr = new T[size];
+    }
     ~LexicallyScopedPtr() {
         if (nullptr != _ptr) {
             delete _ptr;
@@ -66,6 +70,7 @@ public:
         return _ptr;
     }
 };
+
 
 template<typename T>
 class LexicallyScopedRangeCheckedStorage {

@@ -71,7 +71,7 @@ using namespace std;
 
 // Those ugly global variables are neccessary for communication with C source
 MainWindow* MainWinPtr = nullptr;
-char Error[1024];
+
 time_t old_time = 0;
 
 static char* decygwinify(char* filename) {
@@ -331,7 +331,7 @@ MainWindow::MainWindow(int argc, char** argv, int w, int h, const char* label)
         } while (!helpfile.exists() && idx < no);
     }
 #ifdef DOCDIR
-    // Simply to let Fl_Help_Dialog output an error message
+    // Simply to let Fl_Help_Dialog output an errorMsg message
     // with the *most important* path.
     if (!helpfile.exists()) helpfile = DOCDIR "/quat-us.html";
 #endif
@@ -382,7 +382,7 @@ bool MainWindow::shown() const {
 }
 
 void MainWindow::DoImgOpen(const char* givenfile, ZFlag zflag) {
-    Error[0] = 0;
+    std::stringstream errorMsg;
     const char* filename;
 
     status_text.seekp(0);
@@ -409,8 +409,8 @@ void MainWindow::DoImgOpen(const char* givenfile, ZFlag zflag) {
     check_event = FLTK_check_event;
     Change_Name = FLTK_Change_Name;
     FractalPreferences maybeFractal;
-    if (ReadParametersPNG(filename, Error, sizeof(Error), maybeFractal)) {
-        fl_alert("%s", Error);
+    if (ReadParametersPNG(errorMsg, filename, maybeFractal)) {
+        fl_alert("%s", errorMsg.str().c_str());
         if (zflag == ZFlag::NewImage) {
             ImgChanged = false; 
         } else {
@@ -422,16 +422,15 @@ void MainWindow::DoImgOpen(const char* givenfile, ZFlag zflag) {
 
     int xres = _fractal.view().renderedXRes();
     int yres = _fractal.view().renderedYRes();
-    string error;
-    if (DoInitMem(xres, yres, error, zflag)) {
-        fl_alert("%s", error.c_str());
+    if (DoInitMem(errorMsg, xres, yres, zflag)) {
+        fl_alert("%s", errorMsg.str().c_str());
         return;
     }
     int xs, ys;
     bool ready;
-    if (ReadParametersAndImage(Error, sizeof(Error), filename, &ready, &xs, &ys,
+    if (ReadParametersAndImage(errorMsg, filename, &ready, &xs, &ys,
         _fractal, zflag, *this)) {
-        fl_alert("%s", Error);
+        fl_alert("%s", errorMsg.str().c_str());
         if (ZFlag::NewImage == zflag) {
             ImgChanged = false;
         } else {
@@ -452,7 +451,7 @@ void MainWindow::DoImgOpen(const char* givenfile, ZFlag zflag) {
         title += act_file.file();
         MainWin->label(title.c_str());
     } else {
-        ZBufReady = (ready != 0);
+        ZBufReady = ready;
         ZBufChanged = false;
         ZBufInMem = true;
         zbufxstart = xs;
@@ -463,23 +462,23 @@ void MainWindow::DoImgOpen(const char* givenfile, ZFlag zflag) {
     if ((zflag == ZFlag::NewImage && ImgReady) || (zflag != ZFlag::NewImage && ZBufReady)) {
         status_text.seekp(0);
         status_text << tmp.file() << ": Finished. Created by Quat "
-            << Error << ".";
+            << errorMsg.str() << ".";
     } else {
         status_text.seekp(0);
         status_text << tmp.file() << ": In line " << ys
-            << ", created by Quat " << Error << ".";
+            << ", created by Quat " << errorMsg.str() << ".";
     }
-    if (atof(Error) > atof(PROGVERSION)) {
+    if (atof(errorMsg.str().c_str()) > atof(PROGVERSION)) {
         fl_message("Warning: File created by a higher version of Quat!\n"
             "Unpredictable if it will work...");
     }
     return;
 }
 
-int MainWindow::DoInitMem(int xres, int yres, string& error, ZFlag zflag) {
+int MainWindow::DoInitMem(std::ostream& errorMsg, int xres, int yres, ZFlag zflag) {
     // Maximum size of Fl_Widget is 32767...
     if (xres <= 0 || yres <= 0 || xres >= 32768 || yres >= 32768) {
-        error = "Resolution out of range. The GUI version (currently "
+        errorMsg << "Resolution out of range. The GUI version (currently "
             "running)\nhas a limit of 32,767.";
         return -1;
     }
@@ -487,10 +486,10 @@ int MainWindow::DoInitMem(int xres, int yres, string& error, ZFlag zflag) {
 
     if (!pixtmp->valid()) {
         if (ZBufInMem) {
-            error = "Couldn't create image (probably not enough memory.)"
+            errorMsg << "Couldn't create image (probably not enough memory.)"
                 " Try to close the ZBuffer and calculate directly.";
         } else {
-            error = "Couldn't create image (probably not enough memory.)";
+            errorMsg << "Couldn't create image (probably not enough memory.)";
         }
         delete pixtmp;
         return -1;
@@ -504,7 +503,7 @@ int MainWindow::DoInitMem(int xres, int yres, string& error, ZFlag zflag) {
     if (zflag != ZFlag::NewImage) {
         ZBuf = new (nothrow) unsigned char[static_cast<long>(xres) * static_cast<long>(yres) * 3L];
         if (nullptr == ZBuf) {
-            error = "Couldn't allocate memory for ZBuffer.";
+            errorMsg << "Couldn't allocate memory for ZBuffer.";
             MakeTitle();
             return -1;
         }
@@ -588,12 +587,12 @@ int MainWindow::Image_Close() {
 }
 
 void MainWindow::Image_Save() {
-    Error[0] = '\0';
+    std::stringstream error;
     MainWin->cursor(FL_CURSOR_WAIT);
 
     status_text.seekp(0);
-    if (SavePNG(Error, sizeof(Error), act_file.c_str(), 0, imgystart, nullptr, _fractal, ZFlag::NewImage) != 0) {
-        fl_alert("%s", Error);
+    if (SavePNG(error, act_file.c_str(), 0, imgystart, nullptr, _fractal, ZFlag::NewImage) != 0) {
+        fl_alert("%s", error.str().c_str());
         MainWin->cursor(FL_CURSOR_DEFAULT);
         update();
         return;
@@ -609,8 +608,7 @@ void MainWindow::Image_Save() {
 }
 
 void MainWindow::Image_SaveAs() {
-    Error[0] = '\0';
-
+    std::stringstream error;
     status_text.seekp(0);
     const char* fn = main_file_chooser("Save Image As",
         "Images (*.{png,PNG,Png})",
@@ -634,8 +632,8 @@ void MainWindow::Image_SaveAs() {
     }
 
     MainWin->cursor(FL_CURSOR_WAIT);
-    if (SavePNG(Error, sizeof(Error), file.c_str(), 0, imgystart, nullptr, _fractal, ZFlag::NewImage) != 0) {
-        fl_alert("%s", Error);
+    if (SavePNG(error, file.c_str(), 0, imgystart, nullptr, _fractal, ZFlag::NewImage) != 0) {
+        fl_alert("%s", error.str().c_str());
         MainWin->cursor(FL_CURSOR_DEFAULT);
         update();
         return;
@@ -652,7 +650,6 @@ void MainWindow::Image_SaveAs() {
     status_text << "Image '" << file.c_str() << "' written successfully.";
 
     update();
-    return;
 }
 
 void MainWindow::Image_AdjustWindow() {
@@ -704,6 +701,7 @@ void MainWindow::Help_Manual() {
 }
 
 void MainWindow::Calculation_StartImage() {
+    std::stringstream errorMsg;
     ZFlag zflag;
     int xres, i;
 
@@ -720,21 +718,19 @@ void MainWindow::Calculation_StartImage() {
         xres *= 2;
     }
 
-    string error;
-    if (!ImgInMem && DoInitMem(xres, _fractal.view()._yres, error, ZFlag::NewImage)) {
-        fl_alert("%s", error.c_str());
+    if (!ImgInMem && DoInitMem(errorMsg, xres, _fractal.view()._yres, ZFlag::NewImage)) {
+        fl_alert("%s", errorMsg.str().c_str());
         InCalc = false;
         status_text.seekp(0);
         update();
         return;
     }
-    Error[0] = '\0';
 #ifdef WIN32
     const int pixels_per_check = 8;
 #else
     const int pixels_per_check = 1;
 #endif
-    i = CreateImage(Error, sizeof(Error), &imgxstart, &imgystart, _fractal, pixels_per_check, zflag, *this);
+    i = CreateImage(errorMsg, &imgxstart, &imgystart, _fractal, pixels_per_check, zflag, *this);
     if (0 == i || -2 == i || -128 == i) {
         ImgInMem = true;
         ImgReady = false;
@@ -745,26 +741,24 @@ void MainWindow::Calculation_StartImage() {
     }
     InCalc = false;
     if (i != -2) {
-        if (Error[0] != 0) {
-            fl_alert("%s", Error);
+        if (errorMsg.str().size() != 0) {
+            fl_alert("%s", errorMsg.str().c_str());
         }
         status_text.seekp(0);
         update();
     }
     status_text.seekp(0);
     update();
-    return;
 }
 
 void MainWindow::Calculation_StartZBuf() {
-    string error;
+    std::stringstream errorMsg;
     assert(!ImgInMem);
-    Error[0] = 0;
     int xres = _fractal.view().renderedXRes();
     int yres = _fractal.view().renderedYRes();
     if (!ZBufInMem) {
-        if (DoInitMem(xres, yres, error, ZFlag::NewZBuffer)) {
-            fl_alert("%s", error.c_str());
+        if (DoInitMem(errorMsg, xres, yres, ZFlag::NewZBuffer)) {
+            fl_alert("%s", errorMsg.str().c_str());
             status_text.seekp(0);
             update();
             return;
@@ -772,7 +766,7 @@ void MainWindow::Calculation_StartZBuf() {
     }
     DoStartCalc(ZFlag::NewZBuffer);
     ZBufChanged = true;
-    int i = CreateZBuf(Error, sizeof(Error), &zbufxstart, &zbufystart, _fractal, /* pixelsPerCheck */ 8, *this);
+    int i = CreateZBuf(errorMsg, &zbufxstart, &zbufystart, _fractal, /* pixelsPerCheck */ 8, *this);
     if (0 == i || -2 == i || -128 == i) {
         ZBufInMem = true;
     }
@@ -780,8 +774,9 @@ void MainWindow::Calculation_StartZBuf() {
         ZBufReady = true;
     }
     if (i != -2) {
-        if (Error[0] != 0)
-            fl_alert("%s", Error);
+        if (errorMsg.str().size() != 0) {
+            fl_alert("%s", errorMsg.str().c_str());
+        }
         InCalc = false;
     }
     status_text.seekp(0);
@@ -822,7 +817,7 @@ void MainWindow::Parameters_Reset() {
 bool MainWindow::Parameters_ReadINI(
     FractalPreferences& fractal,
     const char* fn) {
-    Error[0] = '\0';
+    std::stringstream errorMsg;
 
     status_text.seekp(0);
     char* filename;
@@ -845,9 +840,9 @@ bool MainWindow::Parameters_ReadINI(
     if (!reset) {
         maybeFractal = fractal;
     }
-    int i = ParseINI(filename, Error, sizeof(Error), maybeFractal);
+    int i = ParseINI(errorMsg, filename, maybeFractal);
     if (i != 0) {
-        fl_alert("%s", Error);
+        fl_alert("%s", errorMsg.str().c_str());
         update();
         return false;
     }
@@ -874,7 +869,7 @@ bool MainWindow::Parameters_ReadINI(
 bool MainWindow::Parameters_ReadPNG(
     FractalPreferences& fractal, 
     bool useZBuf) {
-    Error[0] = '\0';
+    std::stringstream errorMsg;
 
     status_text.seekp(0);
     const char* fn =
@@ -886,9 +881,9 @@ bool MainWindow::Parameters_ReadPNG(
 
     png_path = pathname(fn).path();
     FractalPreferences maybeFractal = fractal;
-    int i = ReadParametersPNG(fn, Error, sizeof(Error), maybeFractal);
+    int i = ReadParametersPNG(errorMsg, fn, maybeFractal);
     if (i != 0) {
-        fl_alert("%s", Error);
+        fl_alert("%s", errorMsg.str().c_str());
         update();
         return false;
     }
@@ -908,7 +903,7 @@ bool MainWindow::Parameters_ReadPNG(
 }
 
 void MainWindow::Parameters_SaveAs(const FractalPreferences& fractal) {
-    Error[0] = '\0';
+    std::stringstream errorMsg;
 
     int mode;
     status_text.seekp(0);
@@ -949,8 +944,8 @@ void MainWindow::Parameters_SaveAs(const FractalPreferences& fractal) {
         }
     }
     status_text.seekp(0);
-    if (WriteINI(Error, sizeof(Error), fn.c_str(), _fractal)) {
-        fl_alert("Couldn't write file '%s',\nError = \"%s\".", fn.c_str(), Error);
+    if (WriteINI(errorMsg, fn.c_str(), _fractal)) {
+        fl_alert("Couldn't write file '%s',\nError = \"%s\".", fn.c_str(), errorMsg.str().c_str());
     } else {
         status_text << "File '" << fn.c_str() << "' was written successfully.";
     }
@@ -993,7 +988,7 @@ int MainWindow::ZBuffer_Close() {
 }
 
 void MainWindow::ZBuffer_SaveAs() {
-    Error[0] = '\0';
+    std::stringstream error;
 
     status_text.seekp(0);
 
@@ -1015,8 +1010,8 @@ void MainWindow::ZBuffer_SaveAs() {
         return;
     }
     MainWin->cursor(FL_CURSOR_WAIT);
-    if (SavePNG(Error, sizeof(Error), filename.c_str(), 0, zbufystart, NULL, _fractal, ZFlag::NewZBuffer) != 0) {
-        fl_alert("%s", Error);
+    if (SavePNG(error, filename.c_str(), 0, zbufystart, NULL, _fractal, ZFlag::NewZBuffer) != 0) {
+        fl_alert("%s", error.str().c_str());
         MainWin->cursor(FL_CURSOR_DEFAULT);
         update();
         return;
@@ -1093,7 +1088,7 @@ void MainWindow::update() {
     }
 }
 
-int MainWindow::FLTK_Initialize(int x, int y, char*) {
+int MainWindow::FLTK_Initialize(std::ostream& errorMsg, int x, int y) {
     ImageWid* p = reinterpret_cast<ImageWid*>(MainWinPtr->pix);
     assert(p != NULL);
     assert(p->w() == x && p->h() == y);

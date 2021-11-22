@@ -36,8 +36,8 @@
 #include "colors.h"
 
 static int readNextCompressed(z_stream* d, unsigned char* s);
-static int ReadNextDouble(z_stream* s, double* d, char* Error, size_t maxErrorLen);
-static int ReadNextInt(z_stream* s, int* i, char* Error, size_t maxErrorLen);
+static int ReadNextDouble(std::ostream& errorMsg, z_stream* s, double* d);
+static int ReadNextInt(std::ostream& errorMsg, z_stream* s, int* i);
 
 
 static char slash;
@@ -81,10 +81,9 @@ char* FilenameWithoutPath(char* filename) {
 }
 
 int ParseFile(
+    std::ostream& errorMsg,
     const char* name,
-    FractalPreferences& fractal,
-    char* Error_Msg,
-    size_t maxErrorLen) {
+    FractalPreferences& fractal) {
     std::ifstream input;
     input.open(name, std::ios::in);
     if (input.is_open()) {
@@ -97,7 +96,7 @@ int ParseFile(
         json::value result = parser.release();
         fractal = json::value_to<FractalPreferences>(result);
     } else {
-        sprintf_s(Error_Msg, maxErrorLen, "Can't open file '%s' for reading.", name);
+        errorMsg << "Can't open file '" << name << "' for reading.";
         return -1;
     }
     return 0;
@@ -233,16 +232,16 @@ int readNextCompressed(z_stream* d, unsigned char* s) {
     return err;
 }
 
-int ReadNextDouble(z_stream* s, double* d, char* Error, size_t maxErrorLen) {
+int ReadNextDouble(std::ostream& errorMsg, z_stream* s, double* d) {
     int err;
     char string[100];
 
     err = readNextCompressed(s, (unsigned char*)string);
     if (Z_DATA_ERROR == err || Z_STREAM_ERROR == err || Z_MEM_ERROR == err) {
         if (Z_MEM_ERROR == err) {
-            sprintf_s(Error, maxErrorLen, "Not enough memory for zlib inflation.\n");
+            errorMsg << "Not enough memory for zlib inflation." << std::endl;
         } else {
-            sprintf_s(Error, maxErrorLen, "Corrupted PNG file.\n");
+            errorMsg << "Corrupted PNG file." << std::endl;
         }
         return -1;
     }
@@ -251,13 +250,13 @@ int ReadNextDouble(z_stream* s, double* d, char* Error, size_t maxErrorLen) {
     return 0;
 }
 
-int ReadNextInt(z_stream* s, int* i, char* Error, size_t maxErrorLen) {
+int ReadNextInt(std::ostream& errorMsg, z_stream* s, int* i) {
     int err;
     char string[100];
 
     err = readNextCompressed(s, (unsigned char*)string);
     if (Z_DATA_ERROR == err || Z_STREAM_ERROR == err || Z_MEM_ERROR == err) {
-        sprintf_s(Error, maxErrorLen, "Corrupted PNG file or no memory.\n");
+        errorMsg << "Corrupted PNG file or no memory." << std::endl;
         return -1;
     }
     *i = atoi(string);
@@ -268,8 +267,7 @@ int ReadNextInt(z_stream* s, int* i, char* Error, size_t maxErrorLen) {
 /* RC :  -3 No quat chunk; -4 No memory; -5 No Quat-PNG; -128 file ver higher
    than progver */
 int ReadParameters(
-    char* Error,
-    size_t maxErrorLen,
+    std::ostream& errorMsg,
     int* xstart,
     int* ystart,
     PNGFile& internal,
@@ -286,27 +284,27 @@ int ReadParameters(
     }
     /* No quAt chunk? */
     if (internal.checkChunkType(image_end_label)) {
-        sprintf_s(Error, maxErrorLen, "PNG file has no QUAT chunk.\n");
+        errorMsg << "PNG file has no QUAT chunk." << std::endl;
         return -3;
     }
     sprintf_s(s, sizeof(s), "%s %s", PROGNAME, PROGVERSION);
     LexicallyScopedPtr<unsigned char> Buf = new unsigned char[internal.length()];
     internal.readChunkData(Buf);
     if (strncmp((char*)(unsigned char*)Buf, s, 4) != 0) {
-        sprintf_s(Error, maxErrorLen, "No QUAT signature in QUAT chunk.\n");
+        errorMsg << "No QUAT signature in QUAT chunk." << std::endl;
         return -5;
     } else {
-        sprintf_s(Error, maxErrorLen, "%c%c%c%c", Buf[5], Buf[6], Buf[7], Buf[8]);
+        errorMsg << Buf[5] << Buf[6] << Buf[7] << Buf[8];
     }
     /* Determine version of QUAT which wrote file */
     thisver = static_cast<float>(atof(PROGVERSION));
     ver = static_cast<float>(atof((char*)&Buf[5]));
     if (0 == ver) {
-        sprintf_s(Error, maxErrorLen, "No QUAT signature in QUAT chunk.\n");
+        errorMsg << "No QUAT signature in QUAT chunk." << std::endl;
         return -5;
     }
     if (ver < 2.0f) {
-        sprintf_s(Error, maxErrorLen, "PNG is from an unsupported older version of Quat.\n");
+        errorMsg << "PNG is from an unsupported older version of Quat." << std::endl;
         return -5;
     }
     *xstart = ((Buf[strlen(s) + 1] << 8) & 0xff00) | Buf[strlen(s) + 2];
@@ -332,7 +330,7 @@ int ReadParameters(
     inflateEnd(&d);
 
     if (formatInternToExtern(fractal.fractal(), fractal.view()) != 0) {
-        sprintf_s(Error, maxErrorLen, "Strange: Error in view struct!");
+        errorMsg << "Strange: Error in view struct!";
         return -1;
     }
     return thisver >= ver ? 0 : -128;
@@ -340,7 +338,7 @@ int ReadParameters(
 
 int updateQUATChunk(PNGFile& internal, int actx, int acty) {
     char s[41];
-    long QuatPos;
+    long quatPos;
 
     /* Back to beginning */
     internal.flush();
@@ -355,7 +353,7 @@ int updateQUATChunk(PNGFile& internal, int actx, int acty) {
         return -3;
     }
     sprintf_s(s, sizeof(s), "%s %s", PROGNAME, PROGVERSION);
-    QuatPos = internal.position() - 8;
+    quatPos = internal.position() - 8;
     LexicallyScopedPtr<unsigned char> Buf = new unsigned char[internal.length()];
     internal.readChunkData(Buf);
     if (strncmp((char*)(unsigned char*)Buf, s, strlen(s)) != 0) {
@@ -370,7 +368,7 @@ int updateQUATChunk(PNGFile& internal, int actx, int acty) {
     Buf[strlen(s) + 7] = (unsigned char)(calc_time >> 8 & 0xffL);
     Buf[strlen(s) + 8] = (unsigned char)(calc_time & 0xffL);
     internal.flush();
-    internal.position(QuatPos);
+    internal.position(quatPos);
     if (!internal.writeChunk(Buf)) { // length is left over from last readChunkData
         return -1;
     }

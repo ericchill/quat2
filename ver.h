@@ -3,7 +3,7 @@
 
 #include "parameters.h"
 
-typedef int (*VER_Initialize) (int x, int y, char* Error);
+typedef int (*VER_Initialize) (std::ostream& errorMsg, int x, int y);
 typedef int (*VER_Done)(void);
 typedef int (*VER_getline) (unsigned char* line, int y, long xres, ZFlag whichbuf);
 typedef int (*VER_check_event) (void);

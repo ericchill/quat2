@@ -94,4 +94,6 @@ void run_many_Z2_driver(iter_struct& is, const std::vector<Quat>& positions, std
 
 void row_of_obj_distance_driver(calc_struct& cs, int numXs, const Quat* positions, const Quat& zbase, const int (*zvals)[2], int* zResults);
 
+void row_of_obj_with_orbits_driver(calc_struct& cs, int N, const Quat* xStarts, const Quat& zbase, const int* zStarts, Quat* orbits);
+
 void addQuatArrays(Quat* dst, const Quat* a, const Quat* b, int n);

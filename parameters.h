@@ -100,6 +100,7 @@ public:
         _p[1] = json::value_to<Quat>(obj.at("p2"));
         _p[2] = json::value_to<Quat>(obj.at("p3"));
         _p[3] = json::value_to<Quat>(obj.at("p4"));
+        _lastiter = 0;
     }
     virtual json::value toJSON() const;
 

@@ -8,29 +8,28 @@ class RealPalette;
 class FractalPreferences;
 class LinePutter;
 
-int CalculatePNG(const char* pngfile1,
+int CalculatePNG(
+    std::ostream& errorMsg,
+    const char* pngfile1,
     const char* pngfile2,
-    char* Error,
-    size_t maxErrorLen,
     const char* ini,
     ZFlag zflag,
     LinePutter& lineDst);
 
-int ParseINI(const char* file,
-    char* Error,
-    size_t maxErrorLen,
+int ParseINI(
+    std::ostream& errorMsg,
+    const char* file,
     FractalPreferences& fractal);
 
-int GetParameters(const char* file, char* Error);
+int GetParameters(std::ostream& errorMsg, const char* file);
 
-int ReadParametersPNG(const char* file,
-    char* Error,
-    size_t maxErrorLen,
+int ReadParametersPNG(
+    std::ostream& errorMsg,
+    const char* file,
     FractalPreferences& fractal);
 
 int ReadParametersAndImage(
-    char* Error,
-    size_t maxErrorLen,
+    std::ostream& errorMsg,
     const char* pngfile,
     bool* ready,
     int* xstart,
@@ -39,8 +38,8 @@ int ReadParametersAndImage(
     ZFlag zflag,
     LinePutter& lineDst);
 
-int SavePNG(char* Error,
-    size_t maxErrorLen,
+int SavePNG(
+    std::ostream& errorMsg,
     const char* pngfile,
     int xstart,
     int ystart,
@@ -50,25 +49,22 @@ int SavePNG(char* Error,
 
 /* Saves the whole QUAT-PNG (retrieved by XXX_getline) */
 int BuildName(
+    std::ostream& errorMsg,
     char* name, 
     char* namewop,
     size_t maxNameLen,
     const char* ext, 
-    const char* file,
-    char* Error,
-    size_t maxErrorLen);
+    const char* file);
 
 int WriteINI(
-    char* Error,
-    size_t maxErrorLen,
+    std::ostream& errorMsg,
     const char* file,
     const FractalPreferences& fractal);
 
 int ImgFromZBuf(
+    std::ostream& errorMsg,
     const char* file,
-    const char* file2, 
-    char* Error,
-    size_t maxErrorLen,
+    const char* file2,
     LinePutter& lineDst);
 
 extern int CleanNumberString(char* s);

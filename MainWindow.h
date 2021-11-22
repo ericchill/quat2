@@ -31,7 +31,7 @@ public:
     ~MainWindow();
     bool shown() const;
 
-    static int FLTK_Initialize(int x, int y, char*);
+    static int FLTK_Initialize(std::ostream& errorMsg, int x, int y);
     static int FLTK_Done();
     static int FLTK_getline(unsigned char* line, int y, long xres, ZFlag whichbuf);
     static int FLTK_check_event();
@@ -71,7 +71,7 @@ public:
 private:
     void MakeTitle();
     void DoImgOpen(const char* givenfile, ZFlag zflag);
-    int DoInitMem(int xres, int yres, string& Error, ZFlag zflag);
+    int DoInitMem(std::ostream& errorMsg, int xres, int yres, ZFlag zflag);
     void DoStartCalc(ZFlag zflag);
     static void Image_Open_cb(Fl_Widget*, void*);
     static void Image_Close_cb(Fl_Widget*, void*);

@@ -63,7 +63,7 @@ JuliaPreview::~JuliaPreview()
 void JuliaPreview::CalcImage3D()
 {
 	int xs = 0, ys = 0;
-	char Error[1024];
+	std::stringstream errorMsg;
 
 	Initialize = DUMMY_Initialize;
 	Done = DUMMY_Done;
@@ -98,11 +98,11 @@ void JuliaPreview::CalcImage3D()
 	bool oldstereo = _imagestereo;
 	_imagestereo = _calcFractal.view().isStereo();
 	old_time = calc_time;
-	CreateImage(Error, sizeof(Error), &xs, &ys, _calcFractal, 80, ZFlag::NewImage, *this);
+	CreateImage(errorMsg, &xs, &ys, _calcFractal, 80, ZFlag::NewImage, *this);
 	calc_time = old_time;
-	if (Error[0] != 0) {
+	if (errorMsg.str().size() != 0) {
 		_imagestereo = oldstereo;
-		fl_alert("%s", Error);
+		fl_alert("%s", errorMsg.str().c_str());
 	}
 
 	_pic_ownView = _ownView;

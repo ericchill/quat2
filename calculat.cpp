@@ -69,15 +69,26 @@ size_t strindex(const char* toSearch, char value) {
 }
 
 
-/* number of functions defined the line below */
-constexpr char* functions[] = {
-    "sin", "cos", "sqr", "sqrt", "exp", "ln",
-    "round", "trunc", "abs", "tan", "random",
-    "atan", "asin", "acos",
-    "sinh", "cosh", "tanh"
-};
-
-constexpr int fncount = sizeof(functions) / sizeof(functions[0]);
+void progtype::initFunctions() {
+    declareFunction("sin", f_sin);
+    declareFunction("cos", f_cos);
+    declareFunction("sqr", f_sqr);
+    declareFunction("sqrt", f_sqrt);
+    declareFunction("exp", f_exp);
+    declareFunction("ln", f_ln);
+    declareFunction("round", f_round);
+    declareFunction("trunc", f_trunc);
+    declareFunction("abs", f_abs);
+    declareFunction("tan", f_tan);
+    declareFunction("random", f_random);
+    declareFunction("atan", f_atan);
+    declareFunction("asin", f_asin);
+    declareFunction("acos", f_acos);
+    declareFunction("sinh", f_sinh);
+    declareFunction("cosh", f_cosh);
+    declareFunction("tanh", f_tanh);
+}
+     
 
 /* Define functions for mathematical operations */
 char f_set(double* a, const double* b) {
@@ -246,20 +257,24 @@ std::string getObjectAfter(const std::string& s, int p) {
 }
 
 
+
+progtype::progtype() : _regsCount(0), _oCount(0) {
+}
+
 bool progtype::isVar(const std::string& s) {
     int i = 0;
-    while (i < _varDef && s.compare(0, strlen(_varNames[i]), _varNames[i]) != 0) {
+    while (i < _varNames.size() && s != _varNames[i]) {
         i++;
     }
-    return i < _varDef;
+    return i < _varNames.size();
 }
 
 int progtype::varNumber(const std::string& s) {
     int i = 0;
-    while (i < _varDef && s.compare(0, strlen(_varNames[i]), _varNames[i]) != 0) {
+    while (i < _varNames.size() && s != _varNames[i]) {
         i++;
     }
-    if (i < _varDef) {
+    if (i < _varNames.size()) {
         return i;
     } else {
         return 255;
@@ -290,63 +305,30 @@ bool progtype::isRegister(const std::string& s) {
     return false;
 }
 
-int progtype::isFunction(const std::string& s)
-/* return code >=0: number of integrated function */
-/* >=0 and bit 7 set (>=128): number of declared function */
-/* -1: error, none of the above */
+bool progtype::isFunction(const std::string& s)
 {
-    int i;
-
-    for (i = 0;
-        (i < _availFnCount
-            && 0 != s.compare(0, strlen(_availFunctions[i].name), _availFunctions[i].name) != 0);
-        i++);
-    if (i == _availFnCount) {
-        for (i = 0;
-            (i < fncount && s.compare(0, strlen(functions[i]), functions[i]) != 0);
-            i++);
-        if (i == fncount) {
-            return -1;
-        } else {
-            return i;
-        }
-    }
-    return i + 128;
+    return _functions.find(s) != _functions.end();
 }
 
-int progtype::declareFunction(const char* name, funcptr f)
-/* returns -1 if too many functions declared */
+void progtype::declareFunction(const char* name, funcptr f)
 {
-    int i = isFunction(name);
-    if (i >= 128) {
-        _availFunctions[i - 128].func = f;
-        return 0;
-    }
-    if (_availFnCount == 30) {
-        return -1;
-    }
-    _availFunctions[_availFnCount].func = f;
-    _availFunctions[_availFnCount++].name = name;
-    return 0;
+    _functions.insert_or_assign(name, f);
 }
 
 /* Set value of variable / create new variable */
 int progtype::setVariable(
     const char* name,
-    unsigned char* handle,
+    size_t* handle,
     double value) {
 
-    if (*handle < _varDef) {
+    if (*handle < _varNames.size()) {
         _varValues[*handle] = value;
     } else {
         int i = varNumber(name);
         if (255 == i) {
-            if (_varDef == 30) {
-                return 100;
-            }
-            *handle = _varDef;
-            strcpy_s(_varNames[_varDef], sizeof(_varNames[0]), name);
-            _varValues[_varDef++] = value;
+            *handle = _varNames.size();
+            _varNames.push_back(name);
+            _varValues.push_back(value);
         } else {
             *handle = i;
             _varValues[i] = value;
@@ -356,16 +338,14 @@ int progtype::setVariable(
 }
 
 void progtype::reset() {
-    _varDef = 0;
-    for (int i = 0; i < 30; i++) {
-        _availFunctions[i].name = "";
-    }
-    _availFnCount = 0;
+    _functions.clear();
+    _varNames.resize(0);
+    _varValues.resize(0);
     _program[0] = nullptr;
 }
 
 double progtype::calculate(char* notdef) {
-    if (NULL == _program[0]) {
+    if (nullptr == _program[0]) {
         return 0.0;
     }
     *notdef = 0;
@@ -376,12 +356,10 @@ double progtype::calculate(char* notdef) {
     return *(_a[i - 1]);
 }
 
-int progtype::doTranslate(char* errorMsg, size_t maxErrorLen, std::string& expr) {
+int progtype::doTranslate(std::ostream& errorMsg, std::string& expr) {
     LexicallyScopedPtr<unsigned int> priori = new unsigned int[expr.size()];
     std::string suba;
-    int error, fct;
 
-    errorMsg[0] = '\0';
     if (strchr(prio3, expr[0]) != NULL) {
         expr.insert(0, 1, '0');
     }
@@ -398,70 +376,26 @@ int progtype::doTranslate(char* errorMsg, size_t maxErrorLen, std::string& expr)
             brcount--;
         }
         if ((bropen != -1) && (0 == brcount)) {
-            std::string suba = expr.substr(bropen + 1, j - (bropen + 1));
-            error = doTranslate(errorMsg, maxErrorLen, suba);
+            suba = expr.substr(bropen + 1, j - bropen - 1);
+            int error = doTranslate(errorMsg, suba);
             if (error != 0) {
                 return error;
             }
             std::string obj1 = getObjectBefore(expr, bropen);
-            std::string obj2 = getObjectAfter(expr, bropen);
             std::string subaFragment = suba.substr(0, j - (bropen + 1));
             expr = expr.replace(bropen, subaFragment.size(), subaFragment);
             expr.replace(bropen + subaFragment.size(), 2, 2, ' ');
-            fct = isFunction(obj1);
-            if (fct != -1) {
-
-                if ((fct & 128) != 0) {
-                    /* Create command */
-                    _program[_oCount] = _availFunctions[fct & ~128].func;
-                    _a[_oCount] = &_reg[strindex(registers, suba[0])];
-                    _b[_oCount] = &_reg[strindex(registers, suba[0])];
-
-                } else if (fct >= 0) {
-
-                    /* Declare new function */
-                    int k = 0;
-                    switch (fct) {
-                    case 0:  k = declareFunction("sin", f_sin); break;
-                    case 1:  k = declareFunction("cos", f_cos); break;
-                    case 2:  k = declareFunction("sqr", f_sqr); break;
-                    case 3:  k = declareFunction("sqrt", f_sqrt); break;
-                    case 4:  k = declareFunction("exp", f_exp); break;
-                    case 5:  k = declareFunction("ln", f_ln); break;
-                    case 6:  k = declareFunction("round", f_round); break;
-                    case 7:  k = declareFunction("trunc", f_trunc); break;
-                    case 8:  k = declareFunction("abs", f_abs); break;
-                    case 9:  k = declareFunction("tan", f_tan); break;
-                    case 10: k = declareFunction("random", f_random); break;
-                    case 11: k = declareFunction("atan", f_atan); break;
-                    case 12: k = declareFunction("asin", f_asin); break;
-                    case 13: k = declareFunction("acos", f_acos); break;
-                    case 14: k = declareFunction("sinh", f_sinh); break;
-                    case 15: k = declareFunction("cosh", f_cosh); break;
-                    case 16: k = declareFunction("tanh", f_tanh); break;
-                    default: k = -255;
-                    }
-
-                    if (k == -1) {
-                        sprintf_s(errorMsg, maxErrorLen, "%s", "Too many functions declared (max. 30)");
-                        return -1;
-                    }
-                    if (k == -255) {
-                        sprintf_s(errorMsg, maxErrorLen, "%s", "Internal error #1");
-                        return -1;
-                    }
-                    /* Create command */
-                    _program[_oCount] = _availFunctions[_availFnCount - 1].func;
-                    _a[_oCount] = &_reg[strindex(registers, suba[0])];
-                    _b[_oCount] = &_reg[strindex(registers, suba[0])];
-                }
+            if (isFunction(obj1)) {
+                _program[_oCount] = _functions.at(obj1);
+                _a[_oCount] = &_reg[strindex(registers, suba[0])];
+                _b[_oCount] = &_reg[strindex(registers, suba[0])];
                 _oCount++;
                 bropen -= static_cast<int>(obj1.size());
             }
-            expr.replace(bropen, suba.size() + 1, suba.size() + 1, ' ');
+            expr.replace(bropen, j - bropen, j - bropen, ' ');
             expr[bropen] = suba[0];
             if ((1 == bropen) && (j == expr.size())) {
-                sprintf_s(errorMsg, maxErrorLen, "Internal error #2");
+                errorMsg << "Internal error #2";
                 return 244;
             }
             bropen = -1;
@@ -484,7 +418,7 @@ int progtype::doTranslate(char* errorMsg, size_t maxErrorLen, std::string& expr)
                 if (isNumber(obj1) || isVar(obj1)) {
                     /* create sequence "load register" */
                     if (i - obj1.size() < 0) {
-                        sprintf_s(errorMsg, maxErrorLen, "Internal error #3");
+                        errorMsg << "Internal error #3";
                         return 1;
                     } else {
                         expr[i - obj1.size()] = registers[_regsCount];
@@ -501,11 +435,11 @@ int progtype::doTranslate(char* errorMsg, size_t maxErrorLen, std::string& expr)
                     _oCount++;
                     _regsCount++;
                     if (_oCount > progtype::maxComplication) {
-                        sprintf_s(errorMsg, maxErrorLen, "Formula too complex.");
+                        errorMsg << "Formula too complex.";
                         return 1;
                     }
                 } else if (!isRegister(obj1) && !isVar(obj1)) {
-                    sprintf_s(errorMsg, maxErrorLen, "Unknown object on left of %c:  \"%s\" ", expr[i], obj1.c_str());
+                    errorMsg << "Unknown object on left of '" << expr[i] << "' : " << obj1;
                     return 1;
                 }
                 /* create operation */
@@ -527,11 +461,11 @@ int progtype::doTranslate(char* errorMsg, size_t maxErrorLen, std::string& expr)
                 } else if (isVar(obj2)) {
                     _b[_oCount] = &_varValues[varNumber(obj2)];
                 } else {
-                    sprintf_s(errorMsg, maxErrorLen, "Unknown object B %s", obj2.c_str());
+                    errorMsg << "Unknown object B \"" << obj2 << "\"";
                     return 1;
                 }
                 if (obj2.size() + obj1.size() > expr.size()) {
-                    sprintf_s(errorMsg, maxErrorLen, "Internal error #4"); 
+                    errorMsg << "Internal error #4 near in \"" << expr << "\""; 
                     return 1;
                 } else {
                     size_t numSpaces = obj1.size() + obj2.size();
@@ -539,7 +473,7 @@ int progtype::doTranslate(char* errorMsg, size_t maxErrorLen, std::string& expr)
                 }
                 _oCount++;
                 if (_oCount > progtype::maxComplication) {
-                    sprintf_s(errorMsg, maxErrorLen, "Formula too complex.");
+                    errorMsg << "Formula too complex.";
                     return 1;
                 }
             }
@@ -547,7 +481,6 @@ int progtype::doTranslate(char* errorMsg, size_t maxErrorLen, std::string& expr)
     }
     if (0 == sign) {
         if (isRegister(expr)) {
-            errorMsg[0] = '\0';
             return 0;
         }
         if (isNumber(expr)) {
@@ -569,24 +502,22 @@ int progtype::doTranslate(char* errorMsg, size_t maxErrorLen, std::string& expr)
             expr[0] = registers[_regsCount];
             _oCount++; _regsCount++;
         } else {
-            sprintf_s(errorMsg, maxErrorLen, "Unknown object C %s", expr.c_str());
+            errorMsg << "Unknown object C \"" << expr << "\"";
             return 1;
         }
         if (_oCount > progtype::maxComplication) {
-            sprintf_s(errorMsg, maxErrorLen, "Formula too complex.");
+            errorMsg << "Formula too complex.";
             return 1;
         }
     }
-    errorMsg[0] = '\0';
     return 0;
 }
 
-int progtype::compile(char* errorMsg, size_t maxErrorLen, const char* expr) {
-    assert(_CrtCheckMemory());
+int progtype::compile(std::ostream& errorMsg, const char* expr) {
+    initFunctions();
     size_t exprLen = strlen(expr) + 1;
     std::string cleanExpr;
 
-    errorMsg[0] = '\0';
     int j = 0;
     for (int i = 0; i < strlen(expr) && expr[i] != '#'; i++) {
         if (!isspace(expr[i])) {
@@ -599,26 +530,24 @@ int progtype::compile(char* errorMsg, size_t maxErrorLen, const char* expr) {
     for (int i = 0; i < cleanExpr.size(); i++) {
         if (cleanExpr[i] == '(') brcount++;
         if (cleanExpr[i] == ')') brcount--;
-        /* error with brackets */
         if (brcount < 0) {
-            sprintf_s(errorMsg, maxErrorLen, "Too many closing parentheses.");
+            errorMsg << "Too many closing parentheses.";
             return 255;
         }
     }
     if (brcount != 0) {
-        sprintf_s(errorMsg, maxErrorLen, "Missing close parenthesis.");
+        errorMsg << "Missing close parenthesis.";
         return 255;
     }
     _regsCount = 0; 
     _oCount = 0;
-    int error = doTranslate(errorMsg, maxErrorLen, cleanExpr);
+    int error = doTranslate(errorMsg, cleanExpr);
     if (0 != error) {
-        assert(false);
+        assert(true);
     }
-    if (strlen(errorMsg) == 0) {
-        sprintf_s(errorMsg, maxErrorLen, "Parsing OK");
+    if (0 == error) {
+        errorMsg << "Parsing OK";
     }
     _program[_oCount] = NULL;
-    //assert(_CrtCheckMemory());
     return error;
 }

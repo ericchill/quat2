@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ostream>
+
 #define T_INTEGER 0
 #define T_DOUBLE 1
 #define T_STRING 2
@@ -32,13 +34,12 @@ typedef char String_t[256];
 
    returns:
    0 , no errors
-   -1 , if parsing error (Error_Msg says which)
+   -1 , if parsing error
 */
 int ParseFile(
+    std::ostream& errorMsg,
     const char* name,
-    FractalPreferences& prefs,
-    char* Error_Msg,
-    size_t maxErrorLen);
+    FractalPreferences& prefs);
 
 /* Wants external format, writes internal to PNG */
 int writeQuatPNGHead(
@@ -53,8 +54,7 @@ int writeQuatPNGHead(
 
 /* returns external format, reads internal from PNG */
 int ReadParameters(
-    char* Error,
-    size_t maxErrorLen,
+    std::ostream& errorMsg,
     int* xstart,
     int* ystart,
     PNGFile& internal,

@@ -39,7 +39,7 @@ VER_eol eol = DUMMY_eol;
 
 
 /* DUMMY functions which do nothing / Available to all versions */
-int DUMMY_Initialize(int x, int y, char* c) {
+int DUMMY_Initialize(std::ostream& errorMsg, int x, int y) {
     return 0;
 }
 int DUMMY_Done(void) {
