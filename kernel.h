@@ -89,11 +89,11 @@ void setMaxIter(int maxIter);
 void setBailout(int bailout);
 
 
-void run_many_Z2_driver(iter_struct& is, const std::vector<Quat>& positions, std::vector<int>& results);
+void run_many_search_driver(iter_struct& is, const std::vector<Quat>& positions, std::vector<int>& results);
 
 
-void row_of_obj_distance_driver(calc_struct& cs, int numXs, const Quat* positions, const Quat& zbase, const int (*zvals)[2], int* zResults);
+void row_of_initial_obj_distance_driver(calc_struct& cs, int numXs, const Quat* positions, const Quat& zbase, const int (*zvals)[2], int* zResults);
 
-void row_of_obj_with_orbits_driver(calc_struct& cs, int N, const Quat* xStarts, const Quat& zbase, const int* zStarts, Quat* orbits);
+void row_of_obj_with_orbits_driver(calc_struct& cs, size_t N, const Quat* xStarts, const Quat& zBase, const int(*zLimits)[2], Quat* orbits, double* distances, double* lastIters);
 
 void addQuatArrays(Quat* dst, const Quat* a, const Quat* b, int n);

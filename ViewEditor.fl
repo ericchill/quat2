@@ -47,7 +47,7 @@ decl {class ViewSelector;} {public
 
 decl {\#include <FL/math.h>} {} 
 
-decl {\#include <cassert>} {} 
+decl {\#include "CReplacements.h"} {} 
 
 class ViewEditor {open : {public Fl_Group}
 } {

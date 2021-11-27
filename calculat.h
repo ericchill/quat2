@@ -3,6 +3,7 @@
 #include <map>
 #include <ostream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 typedef char (*funcptr) (double* a, const double* b);
@@ -63,7 +64,7 @@ private:
     int doTranslate(std::ostream& errorMsg, std::string& expr);
 
     /* None of these members has to be referenced by the user, they are filled automatically */
-    std::map<std::string, funcptr> _functions;
+    std::unordered_map<std::string, funcptr> _functions;
     std::vector<std::string> _varNames;           // names of defined variables (max 30, max 12 char.)
     std::vector<double> _varValues;               // here the values of the variables are stored
     funcptr _program[maxComplication];            // 100 instructions (function calls) which _a program consists of */

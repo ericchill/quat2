@@ -52,6 +52,7 @@ int iterate_2(iter_struct*);
 int iterate_3(iter_struct*);
 int iterate_3_no_orbit(iter_struct*);
 int iterate_4(iter_struct*);
+int iterate_4_no_orbit(iter_struct*);
 int iterate_bulb(iter_struct*);
 
 

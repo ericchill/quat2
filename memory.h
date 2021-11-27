@@ -1,9 +1,10 @@
 #pragma once
 
 #include <cerrno>
-#include <cassert>
 #include <stdio.h>
 #include <stdexcept>
+#include <type_traits>
+#include "CReplacements.h"
 
 class LexicallyScopedFile {
     FILE* _fd;
@@ -47,19 +48,19 @@ public:
         _ptr = new T[size];
     }
     ~LexicallyScopedPtr() {
-        if (nullptr != _ptr) {
-            delete _ptr;
-            _ptr = nullptr;
-        }
+        freeContained();
     }
     T* operator=(T* ptr) {
-        if (nullptr != _ptr) {
-            delete _ptr;
-        }
+        freeContained();
         _ptr = ptr;
         return _ptr;
     }
-    operator T* () { return _ptr; }
+    operator T* () {
+        return _ptr;
+    }
+    operator const T* () const {
+        return _ptr;
+    }
     T* operator->() {
         return &*_ptr;
     }
@@ -68,6 +69,16 @@ public:
     }
     T* ptr() {
         return _ptr;
+    }
+private:
+    void freeContained() {
+        if (nullptr != _ptr) {
+            if (std::is_array<T>()) {
+                delete[] _ptr;
+            } else {
+                delete _ptr;
+            }
+        }
     }
 };
 
@@ -88,7 +99,6 @@ public:
     }
     ~LexicallyScopedRangeCheckedStorage() {
         delete []_mem;
-        _mem = nullptr;
     }
     const T* ptr() const {
         return _mem;

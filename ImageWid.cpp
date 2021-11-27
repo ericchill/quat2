@@ -28,7 +28,7 @@
 
 #include <new>
 //#include <iostream>
-
+#include "CReplacements.h"
 #ifndef NO_NAMESPACE
 using namespace std;
 #endif

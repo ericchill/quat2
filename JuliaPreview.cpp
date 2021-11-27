@@ -34,8 +34,6 @@
 #include <FL/Fl_Button.H>
 #include <FL/fl_ask.H>
 
-//#include <cassert>
-//#include <cmath>  Eric--commented out
 #include <math.h>
 #include <ctime>
 

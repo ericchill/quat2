@@ -29,7 +29,6 @@
 #include "ChildWindow.h"
 #include "ViewSelector.h"
 #include <FL/math.h>
-//#include <cassert>
 
 inline void ViewEditor::cb_vre_i(Fl_Value_Input* o, void*) {
     _view._s[0] = o->value();

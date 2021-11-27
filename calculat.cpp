@@ -542,9 +542,6 @@ int progtype::compile(std::ostream& errorMsg, const char* expr) {
     _regsCount = 0; 
     _oCount = 0;
     int error = doTranslate(errorMsg, cleanExpr);
-    if (0 != error) {
-        assert(true);
-    }
     if (0 == error) {
         errorMsg << "Parsing OK";
     }

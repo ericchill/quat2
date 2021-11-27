@@ -332,6 +332,7 @@ struct calc_struct {
         ViewBasis& base,
         ViewBasis& sbase,
         ZFlag zflag);
+    ~calc_struct();
     Quat _xp, _xs, _xq, _xcalc;
     FractalSpec _f;
     FractalView _v;
@@ -362,8 +363,15 @@ struct calc_struct {
     int calcline(long x1, long x2, int y,
         double* LBuf, float* BBuf, float* CBuf,
         ZFlag zflag);
-    void obj_distance_search_range(int& zFrom, int& zTo);
+    void obj_distance_search_range(const Vec3& xStart, int& zFrom, int& zTo);
     double obj_distance(int zStart = 0);
     float colorizepoint();
     float brightpoint(long x, int y, double* LBuf);
+
+    size_t _lBufSize;
+    int(*_zLimits)[2];
+    Quat* _xStarts;
+    Quat* _manyOrbits;
+    double* _distances;
+    double* _lastIters;
 };

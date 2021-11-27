@@ -28,7 +28,6 @@
 #include "memory.h"
 #include "ver.h"
 
-//#include <cassert>
 #include <ctime>	// time_t
 #include <cstdlib>	// atof
 #include <new>
@@ -191,7 +190,7 @@ int switch_callback(int argc, char* argv[], int& i) {
 
     if (argc < 0) {
         int idx = -argc - 1;
-        assert(idx == 0);
+        assert(0 == idx);
         if (-1 == paramidx[idx]) {
             return -1;
         }
@@ -228,7 +227,7 @@ MainWindow::MainWindow(int argc, char** argv, int w, int h, const char* label)
     pix(0), help(new Fl_Help_Dialog), ZBuf(0),
     act_file("Noname.png"), ini_path("./"), png_path("./"),
     _status_text_char(0) {
-    assert(MainWinPtr == 0);
+    assert(nullptr == MainWinPtr);
     MainWinPtr = this;
 #ifdef WIN32
     SetSlash('\\');

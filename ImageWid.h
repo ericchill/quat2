@@ -1,7 +1,6 @@
 #ifndef IMAGEWID_H
 #define IMAGEWID_H
 
-//#include <cassert>
 #include <cstring>
 #include <FL/fl_draw.H>
 #include <FL/Fl_Widget.H>

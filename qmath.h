@@ -159,6 +159,12 @@ public:
         _q[3] = 0;
     }
 
+    CUDA_CALLABLE Quaternion& operator=(const Quaternion& q) {
+        for (int i = 0; i < 3; i++) {
+            _q[i] = q._q[i];
+        }
+        return *this;
+    }
     CUDA_CALLABLE T& operator[](size_t i) {
         return _q[i];
     }
@@ -286,6 +292,15 @@ public:
     CUDA_CALLABLE operator vec3<T>() const {
         return vec3<T>(_q[0], _q[1], _q[2]);
     }
+
+    CUDA_CALLABLE bool operator==(const Quaternion& o) const {
+        for (int i = 0; i < 4; i++) {
+            if (_q[i] != o._q[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
 };
 
 template< typename T >
@@ -303,6 +318,11 @@ CUDA_CALLABLE Quaternion<T> operator+(T x, const Quaternion<T>& q) {
 }
 
 template<typename T>
+CUDA_CALLABLE Quaternion<T> operator-(T x, const Quaternion<T>& q) {
+    return Quat(x, 0, 0, 0) - q;
+}
+
+template<typename T>
 CUDA_CALLABLE Quaternion<T> operator*(T s, const Quaternion<T>& q) {
     return q * s;
 }
@@ -316,29 +336,29 @@ template<typename T>
 CUDA_CALLABLE T exp(const Quaternion<T>& x) {
     T ex = exp(x[0]);
     T n = x.imag().magnitude();
-    T f = ex * sin(n);
-    if (n != 0.0) {
+    if (0 == n) {
+        return Quaternion<T>(ex, 0, 0, 0);
+    } else {
+        T f = ex * sin(n);
         f /= n;
+        return Quaternion<T>(
+            ex * cos(n),
+            f * x[1],
+            f * x[2],
+            f * x[3]);
     }
-    return Quaternion<T>(
-        ex * cos(n),
-        f * x[1],
-        f * x[2],
-        f * x[3]);
 }
 
 template<typename T>
 CUDA_CALLABLE Quaternion<T> log(const Quaternion<T>& x) {
-    T n = x.imag().magnitude();
-    if (0 == n) {
-        return Quaternion<T>(
-            0.5 * log(x[0] * x[0]),
-            atan2(0, x[0]),
-            0, 0);
+    T absImag = x.imag().magnitude();
+    if (0 == absImag) {
+        return Quaternion<T>(log(x[0]), 0, 0, 0);
     } else {
-        double f = atan2(n, x[0]) / n;
+        double absQ = x.magnitude();
+        double f = acos(x[0] / absQ) / absImag;
         return Quaternion<T>(
-            0.5 * log(x[0] * x[0] + n * n),
+            log(absQ),
             f * x[1],
             f * x[2],
             f * x[3]);
@@ -348,8 +368,7 @@ CUDA_CALLABLE Quaternion<T> log(const Quaternion<T>& x) {
 template<typename T>
 CUDA_CALLABLE Quaternion<T> pow(const Quaternion<T>& x, const Quaternion<T>& y) {
     T an = x.magnitudeSquared();
-    Quaternion<T> yImag = y.imag();
-    T bnp = yImag.magnitudeSquared();
+    T bnp = y.imag().magnitudeSquared();
     if (TOO_SMALL(an) && (y[0] > 0 || bnp != 0)) {
         return Quaternion<T>(0);
     }

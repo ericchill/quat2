@@ -24,7 +24,6 @@
 #include <config.h>
 #endif
 
-//#include <cassert>
 #include <cstdlib> 	// atoi
 #include <cstring>	// memset
 #include <iostream>
@@ -316,8 +315,8 @@ int MandelPreview::CalcMPixel(int x, int y)
 	  case 5:
 		  iter = iterate_bulb;
 		  break;
-		
-	  default: assert(false);
+	  default:
+		  throw std::invalid_argument("Invalid formula number");
 	}
 	
 	Coo2C(x, y, is.c[0], is.c[1]);

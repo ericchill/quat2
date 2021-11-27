@@ -28,7 +28,6 @@
 #endif
 
 #include <algorithm>
-#include <assert.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -121,13 +120,6 @@ int TranslateColorFormula(std::ostream& errorMsg, const char* colscheme) {
     dummy = progtype::nullHandle; prog.setVariable("zb", &dummy, ddummy);
     dummy = progtype::nullHandle; prog.setVariable("wb", &dummy, ddummy);
 
-    /*  prog.setVariable("diffr", &dummy, ddummy); */
-    /*  prog.setVariable("eorbit", &dummy, ddummy);
-    prog.setVariable("jorbit", &dummy, ddummy);
-    prog.setVariable("korbit", &dummy, ddummy);
-    prog.setVariable("lorbit", &dummy, ddummy);
-    prog.setVariable("closestit", &dummy, ddummy); */
-
     dummy = progtype::nullHandle; prog.setVariable("pi", &dummy, M_PI);
 
     return prog.compile(errorMsg, colscheme) != 0 ? -1 : 0;
@@ -205,12 +197,13 @@ void allocBufs(
     LexicallyScopedPtr<double>& lBufL,
     LexicallyScopedPtr<unsigned char>& line,
     LexicallyScopedPtr<unsigned char>& line2,
-    LexicallyScopedPtr<unsigned char>& line3)
+    LexicallyScopedPtr<unsigned char>& line3,
+    size_t& lBufSize)
     /* zflag ... whether img (0), zbuf (1) or zbuf->img (2) is calculated */
     /* pal ... whether palette or not */
 {
     unsigned int st = v.isStereo() ? 2 : 1;
-    size_t lBufSize = v._xres * v._antialiasing * (v._antialiasing + 1L) + 10;
+    lBufSize = v._xres * v._antialiasing * (v._antialiasing + 1L) + 10;
     switch (zflag) {
     case ZFlag::NewImage:   /* create an image without ZBuffer */
         lBufR = new double[lBufSize]();
@@ -262,65 +255,6 @@ int LBuf_ZBuf(
             line[tmp * 3 + 1] = (unsigned char)(l >> 16 & 0xFF);
             line[tmp * 3 + 2] = (unsigned char)(l >> 8 & 0xFF);
             line[tmp * 3 + 3] = (unsigned char)(l & 0xFF);
-        }
-    }
-    return 0;
-}
-
-int CalculateFractalLine(
-    ZFlag zflag,
-    int iy,
-    int* xstart,
-    int pixelsPerCheck,
-    calc_struct& calc,
-    FractalPreferences& fractal,
-    double* lbuf,
-    float* cbuf,
-    float* bbuf,
-    unsigned char* line,
-    bool firstLine,
-    LinePutter& lineDst) {
-
-    long xres_st = fractal.view()._xres;
-    long xres_aa = fractal.view()._xres * fractal.view()._antialiasing;
-    long xres_st_aa = xres_aa;
-    if (fractal.view().isStereo()) {
-        xres_st *= 2;
-        xres_st_aa *= 2;
-    }
-
-    for (int ii = *xstart; ii < fractal.view()._xres; ii += pixelsPerCheck) {
-        long imax = ii + pixelsPerCheck - 1;
-        if (imax > fractal.view()._xres - 1) {
-            imax = fractal.view()._xres - 1;
-        }
-
-        calc.calcline2(ii, imax, iy, lbuf, bbuf, cbuf, zflag);  // right eye or monocular
-
-        /* image to calculate */
-        if (shouldCalculateImage(zflag) && !firstLine) {
-            fractal.realPalette().pixelValue(ii, imax, 255, 255, 255, &line[1], cbuf, bbuf);
-        }
-        /* Display and Transfer */
-        if (ZFlag::NewZBuffer == zflag) {
-            for (int kk = 1; kk < fractal.view()._antialiasing + 1; kk++) {
-                LBuf_ZBuf(fractal.view(), lbuf, line, ii, imax, kk, 0);
-                lineDst.putLine(ii * fractal.view()._antialiasing,
-                    (imax + 1) * fractal.view()._antialiasing - 1,
-                    xres_st_aa,
-                    iy * fractal.view()._antialiasing + kk - 1,
-                    line + 1,
-                    true);
-            }
-        } else if (!firstLine) {
-            lineDst.putLine(ii, imax, xres_st, iy, line + 1, false);
-        }
-        if ((imax == fractal.view()._xres - 1) && !firstLine) {
-            eol(iy + 1);
-        }
-        int rrv = check_event();
-        if (rrv != 0) {
-            return rrv;
         }
     }
     return 0;
@@ -386,12 +320,13 @@ int CalculateFractal(
         xres_st_aa *= 2;
     }
 
-    if (nullptr != GlobalOrbit) {
-        delete[] GlobalOrbit;
-    }
-    GlobalOrbit = new Quat[frac._maxiter + 2]();
+    //if (nullptr != GlobalOrbit) {
+    //    delete[] GlobalOrbit;
+    //}
+    //GlobalOrbit = new Quat[frac._maxiter + 2]();
     /* "+2", because orbit[0] is special flag for orbite,iy,k,l */
-    allocBufs(view, zflag, cBuf, bBuf, lBufR, lBufL, line, line2, line3);
+    size_t lBufSize;
+    allocBufs(view, zflag, cBuf, bBuf, lBufR, lBufL, line, line2, line3, lBufSize);
 
     time_t my_time = time(NULL);
 
@@ -416,6 +351,10 @@ int CalculateFractal(
         }
 
         /* Initialize LBufs from ZBuffer */
+        //fillArray<double>(&lBufR[0], view._zres, xres_aa);
+        //if (view.isStereo()) {
+        //    fillArray<double>(&lBufL[0], view._zres, xres_aa)
+        //}
         memcpy(&lBufR[0], &lBufR[view._antialiasing * xres_aa], xres_aa * sizeof(lBufR[0]));
         if (view.isStereo()) {
             memcpy(&lBufL[0], &lBufL[view._antialiasing * xres_aa], xres_aa * sizeof(lBufL[0]));
@@ -442,7 +381,6 @@ int CalculateFractal(
         for (int ii = *xstart; ii < view._xres; ii += pixelsPerCheck) {
             long imax = ii + pixelsPerCheck - 1;
             imax = std::min<long>(imax, view._xres - 1);
-
             cr.calcline2(ii, imax, iy, lBufR, bBuf, cBuf, zflag);  // right eye or monocular
 
             /* image to calculate */
