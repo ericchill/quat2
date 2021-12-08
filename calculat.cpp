@@ -20,9 +20,6 @@
 /* along with this program; if not, write to the Free Software */
 /* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 #include <string.h>
 #include <stdio.h>    /* "sprintf" */
@@ -57,12 +54,12 @@ char f_cosh(double* a, const double* b);
 char f_tanh(double* a, const double* b);
 char f_random(double* a, const double* b);
 
-constexpr char *operators = "+-*/^";
-constexpr char *numbers = "0123456789.";
-constexpr char *registers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-constexpr char *prio1 = "^";
-constexpr char *prio2 = "*/";
-constexpr char *prio3 = "+-";
+constexpr char const *operators = "+-*/^";
+constexpr char const *numbers = "0123456789.";
+constexpr char const *registers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+constexpr char const *prio1 = "^";
+constexpr char const *prio2 = "*/";
+constexpr char const *prio3 = "+-";
 
 size_t strindex(const char* toSearch, char value) {
     return strchr(toSearch, value) - toSearch;

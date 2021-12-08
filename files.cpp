@@ -21,16 +21,12 @@
 /* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include <iostream>
 #include <fstream>
 #include <boost/json/stream_parser.hpp>
 
 #include "common.h"
-#include "quat.h"  /* includes common.h */
+#include "quat.h"
 #include "files.h"   
 #include "memory.h"
 #include "colors.h"
@@ -68,7 +64,7 @@ void TruncateFileExt(char* filename) {
     }
 }
 
-/* Make a pointer to the filename (without path) */
+/* Make a pointer to the basename (without path) */
 char* FilenameWithoutPath(char* filename) {
     char* s;
 
@@ -111,10 +107,9 @@ int writeQuatPNGHead(
     long calctime,
     const FractalPreferences& fractal,
     ZFlag zflag)
-    /* rewrites file "name" */
+    /* rewrites filename "name" */
 {
     char pngname[256];
-    z_stream c_stream;
     time_t dtime;
     unsigned char longBuf[4];
     FractalSpec frac;
@@ -199,6 +194,8 @@ int writeQuatPNGHead(
 
     /* convert FractalPreferences to ascii */
     std::string fracJSON = json::serialize(fractal.toJSON());
+#if 0
+    z_stream c_stream;
     c_stream.zalloc = nullptr;
     c_stream.zfree = nullptr;
     deflateInit(&c_stream, Z_DEFAULT_COMPRESSION);
@@ -211,6 +208,13 @@ int writeQuatPNGHead(
     if (!png_internal.writeChunk(uBuf, c_stream.total_out + i)) {
         return -1;
     }
+#else
+    // Don't compress so we can get it back with strings(1) if need be.
+    memcpy(&uBuf[i+1], fracJSON.c_str(), fracJSON.size());
+    if (!png_internal.writeChunk(uBuf, i + 1 + fracJSON.size())) {
+        return -1;
+    }
+#endif
     return 0;
 }
 
@@ -264,7 +268,7 @@ int ReadNextInt(std::ostream& errorMsg, z_stream* s, int* i) {
     return 0;
 }
 
-/* RC :  -3 No quat chunk; -4 No memory; -5 No Quat-PNG; -128 file ver higher
+/* RC :  -3 No quat chunk; -4 No memory; -5 No Quat-PNG; -128 filename ver higher
    than progver */
 int ReadParameters(
     std::ostream& errorMsg,
@@ -296,7 +300,7 @@ int ReadParameters(
     } else {
         errorMsg << Buf[5] << Buf[6] << Buf[7] << Buf[8];
     }
-    /* Determine version of QUAT which wrote file */
+    /* Determine version of QUAT which wrote filename */
     thisver = static_cast<float>(atof(PROGVERSION));
     ver = static_cast<float>(atof((char*)&Buf[5]));
     if (0 == ver) {
@@ -338,7 +342,7 @@ int ReadParameters(
 
 int updateQUATChunk(PNGFile& internal, int actx, int acty) {
     char s[41];
-    long quatPos;
+    int quatPos;
 
     /* Back to beginning */
     internal.flush();

@@ -7,6 +7,7 @@ struct iter_struct {
 	Quat c;
 	double bailout;
 	int maxiter;
+	int maxOrbit;
 	int exactiter;
 	Quat p[4];
 	Quat *orbit;
@@ -49,6 +50,7 @@ int iterate_1(iter_struct*);
 int iterate_1_no_orbit(iter_struct*);
 int iternorm_1(iter_struct*, Vec3& norm);
 int iterate_2(iter_struct*);
+int iterate_2_no_orbit(iter_struct*);
 int iterate_3(iter_struct*);
 int iterate_3_no_orbit(iter_struct*);
 int iterate_4(iter_struct*);
@@ -58,7 +60,7 @@ int iterate_bulb(iter_struct*);
 
  
 float brightpoint(
-		  long x,
+		  int x,
 		  int y,
 		  float *LBuf,
 		  calc_struct *c);

@@ -1,7 +1,7 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0108 
-header_name {.h} 
-code_name {.cxx}
+version 1.0304
+header_name {.h}
+code_name {.cpp}
 decl {// Quat - A 3D fractal generation program
 // Copyright (C) 1997-2000 Dirk Meyer
 // (email: dirk.meyer@studserv.uni-stuttgart.de)
@@ -22,75 +22,81 @@ decl {// Quat - A 3D fractal generation program
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.} {} 
+// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.} {private local
+}
 
-declblock {\#ifdef HAVE_CONFIG_H} {after {\#endif}
-} {
-  decl {\#include <config.h>} {}
-} 
+decl {\#include "MainWindow.h"} {private local
+}
 
-decl {\#include "MainWindow.h"} {} 
+decl {\#include "ObjectEditor.h"} {private local
+}
 
-decl {extern MainWindow* MainWinPtr;} {} 
+decl {\#include "ViewEditor.h"} {private local
+}
 
-decl {\#include "ObjectEditor.h"} {} 
+decl {\#include "ColorEditor.h"} {private local
+}
 
-decl {\#include "ViewEditor.h"} {} 
+decl {\#include "IntersecEditor.h"} {private local
+}
 
-decl {\#include "ColorEditor.h"} {} 
+decl {\#include "OtherEditor.h"} {private local
+}
 
-decl {\#include "IntersecEditor.h"} {} 
+decl {class ObjectEditor;} {public local
+}
 
-decl {\#include "OtherEditor.h"} {} 
+decl {class ViewEditor;} {public local
+}
 
-decl {class ObjectEditor;} {public
-} 
+decl {class ColorEditor;} {public local
+}
 
-decl {class ViewEditor;} {public
-} 
+decl {class IntersecEditor;} {public local
+}
 
-decl {class ColorEditor;} {public
-} 
+decl {class OtherEditor;} {public local
+}
 
-decl {class IntersecEditor;} {public
-} 
+decl {\#include "JuliaPreview.h"} {private local
+}
 
-decl {class OtherEditor;} {public
-} 
+decl {class JuliaPreview;} {public local
+}
 
-decl {\#include "JuliaPreview.h"} {} 
+decl {\#include "ViewSelector.h"} {private local
+}
 
-decl {class JuliaPreview;} {public
-} 
+decl {class ViewSelector;} {public local
+}
 
-decl {\#include "ViewSelector.h"} {} 
+decl {\#include "quat.h"} {private local
+}
 
-decl {class ViewSelector;} {public
-} 
+decl {\#include <FL/fl_ask.H>} {private local
+}
 
-decl {\#include "quat.h"} {} 
+decl {\#include "parameters.h"} {public global
+}
 
-decl {\#include <FL/fl_ask.H>} {} 
+decl {\#include "dragWindow.h"} {private local
+}
 
-decl {\#include "structs.h"} {public
-} 
+decl {class dragWindow;} {public local
+}
 
-decl {\#include "dragWindow.h"} {} 
-
-decl {class dragWindow;} {public
-} 
-
-decl {\#include <cmath>    // sqrt} {} 
+decl {\#include <cmath>    // sqrt} {private local
+}
 
 class ParameterEditor {open
 } {
   Function {ParameterEditor() : _state(0), _result(0)} {open
   } {
     Fl_Window dialog {
-      label {Parameter Editor}
-      xywh {461 172 587 357} type Double hide
+      label {Parameter Editor} open
+      xywh {1079 172 585 355} type Double visible
     } {
-      Fl_Tabs tabs {
+      Fl_Tabs tabs {open
         xywh {10 0 420 240}
       } {
         Fl_Box Object {
@@ -100,7 +106,7 @@ class ParameterEditor {open
         }
         Fl_Box View {
           label View
-          xywh {10 20 420 220}
+          xywh {10 20 420 220} hide
           class ViewEditor
         }
         Fl_Box Color {
@@ -115,7 +121,7 @@ class ParameterEditor {open
         }
         Fl_Box Other {
           label Other
-          xywh {10 20 420 220} hide
+          xywh {10 20 420 220}
           class OtherEditor
         }
       }
@@ -142,45 +148,34 @@ _result = 0;}
       Fl_Button button_reset {
         label Reset
         callback {if (fl_ask("This will reset all parameters to their default values. Continue?")) {
-	frac_cpp f; view_cpp vi; realpal_cpp r; colscheme_cpp col; cutbuf_cpp cut;
-	SetDefaults(&f, &vi, &r, col, cut);
-	set(f, vi, r, col, cut);
+    FractalPreferences f;
+    set(f);
 }}
         tooltip {Reset all parameters in the editor.} xywh {480 120 50 20} labelsize 12 hotspot
       }
       Fl_Button button_import {
         label Import
-        callback {frac_cpp f; view_cpp vi; realpal_cpp r; colscheme_cpp col; cutbuf_cpp cut;
-get(f, vi, r, col, cut);
-if (MainWinPtr->Parameters_ReadPNG(f, vi, r, col, cut, _state==2)) {
-//	Object->set(f);
-//	View->set(vi);
-//	Color->set(r, col);
-//	Intersection->set(cut);
-//	Other->set(vi);
-	set(f, vi, r, col, cut);
+        callback {FractalPreferences fractal;
+get(fractal);
+if (MainWindow::mainWindowPtr->Parameters_ReadPNG(fractal, _state==2)) {
+    set(fractal);
 }}
         tooltip {Read parameters from a PNG into the editor.} xywh {530 120 50 20} labelsize 12
       }
       Fl_Button button_read {
         label Read
-        callback {frac_cpp f; view_cpp vi; realpal_cpp r; colscheme_cpp col; cutbuf_cpp cut;
-get(f, vi, r, col, cut);
-if (MainWinPtr->Parameters_ReadINI(f, vi, r, col, cut)) {
-//	Object->set(f);
-//	View->set(vi);
-//	Color->set(r, col);
-//	Intersection->set(cut);
-//	Other->set(vi);
-	set(f, vi, r, col, cut);
+        callback {FractalPreferences fractal;
+get(fractal);
+if (MainWindow::mainWindowPtr->Parameters_ReadINI(fractal)) {
+    set(fractal);
 }}
         tooltip {Read parameters from an INI file into editor.} xywh {480 140 50 20} labelsize 12
       }
       Fl_Button {} {
         label Write
-        callback {frac_cpp fr; view_cpp vi; realpal_cpp r; colscheme_cpp col; cutbuf_cpp cut;
-get(fr, vi, r, col, cut);
-MainWinPtr->Parameters_SaveAs(fr, vi, r, col, cut);}
+        callback {FractalPreferences fractal;
+get(fractal);
+MainWindow::mainWindowPtr->Parameters_SaveAs(fractal);}
         tooltip {Write current parameters to INI file.} xywh {530 140 50 20} labelsize 12
       }
       Fl_Box {} {
@@ -209,8 +204,8 @@ Off: Use defaults in case you're lost.} xywh {20 290 50 20} shortcut 0x8006f val
       Fl_Button DoPreview {
         label {&Calc}
         callback {if (!window_preview->shown()) {
-	button_show->value(1);
-	window_preview->show();
+    button_show->value(1);
+    window_preview->show();
 }
 calcPreview();
 Preview->redraw();}
@@ -249,8 +244,8 @@ Preview->redraw();}
       }
     }
     Fl_Window window_preview {
-      label {Julia Preview Window}
-      xywh {402 380 204 84} type Double box EMBOSSED_BOX
+      label {Julia Preview Window} open
+      xywh {402 380 200 80} type Double box EMBOSSED_BOX
       class dragWindow non_modal noborder visible
     } {
       Fl_Box Preview {
@@ -259,13 +254,17 @@ Preview->redraw();}
         class JuliaPreview
       }
     }
-    code {vsabove->SetInputs(View->vre,View-> vj); 
+    code {vsabove->SetInputs(View->vre, View->vj); 
 vsfront->SetInputs(View->vre, View->vi); 
 vsbeside->SetInputs(View->vj, View->vi); 
-vsabove->Init(0,2,1,-1); vsbeside->Init(2,1,-1,1); vsfront->Init(0,1,1,1);
+vsabove->Init(0, 2, 1, -1);
+vsbeside->Init(2, 1, -1, 1);
+vsfront->Init(0, 1, 1, 1);
 View->setSelectors(vsabove, vsbeside, vsfront, stereo);
+View->setParentEditor(this);
 Other->setSelectors(vsabove, vsbeside, vsfront);
-Preview->setbutton3d(DoPreview);} {}
+Preview->setbutton3d(DoPreview);} {selected
+    }
     code {window_preview->resize(dialog->x()+150, 
 	dialog->y()+250, window_preview->w(),
 	window_preview->h());} {}
@@ -273,41 +272,42 @@ Preview->setbutton3d(DoPreview);} {}
   Function {run()} {open return_type int
   } {
     code {tabs->value(Object);
-	dialog->show();
-	while (dialog->shown() && MainWinPtr->shown())
-	{
-		Fl::wait();
-		for (;;) 
-		{
-			Fl_Widget *o = Fl::readqueue();
-			if (!o) break;
-		}
-	}
-	if (dialog->shown()) dialog->hide();
-	return _result;} {selected
+dialog->show();
+while (dialog->shown() && MainWindow::mainWindowPtr->shown()) {
+    Fl::wait();
+    for (;;) {
+        Fl_Widget *o = Fl::readqueue();
+        if (!o) break;
     }
+}
+if (dialog->shown()) {
+    dialog->hide();
+}
+return _result;} {}
   }
-  Function {set(const frac_cpp& f, const view_cpp &v, const realpal_cpp &r, const colscheme_cpp& colscheme, const cutbuf_cpp& cutbuf)} {} {
-    code {Object->set(f);
-View->set(v);
-Color->set(r, colscheme);
-Intersection->set(cutbuf);
-Other->set(v);} {}
-  }
-  Function {get(frac_cpp& f, view_cpp& v, realpal_cpp& r, colscheme_cpp& colscheme, cutbuf_cpp& cutbuf)} {open
+  Function {set(const FractalPreferences& fractal)} {open return_type void
   } {
-    code {Object->get(f);
-View->get(v);
-Color->get(r, colscheme);
-Intersection->get(cutbuf);
-Other->get(v);} {}
+    code {Object->set(fractal.fractal());
+View->set(fractal.view());
+Color->set(fractal.realPalette(), fractal.colorScheme());
+Intersection->set(fractal.cuts(), fractal.view());
+Other->set(fractal.view());} {}
+  }
+  Function {get(FractalPreferences& fractal)} {open return_type void
+  } {
+    code {Object->get(fractal.fractal());
+View->get(fractal.view());
+Color->get(fractal.realPalette(), fractal.colorScheme());
+Intersection->get(fractal.cuts());
+Other->get(fractal.view());} {}
   }
   Function {SetState(int state)} {return_type void
   } {
-    code {if (_state == state) return;
+    code {if (_state == state) {
+    return;
+}
 _state = state;
-if (state==1)
-{
+if (state==1) {
 	vsbeside->deactivate();
 	vsabove->deactivate();
 	vsfront->deactivate();
@@ -329,8 +329,7 @@ if (state==1)
 	ok_button->hide();
 	info->show();
 }
-if (state==2)
-{
+if (state==2) {
 	vsbeside->deactivate();
 	vsfront->deactivate();
 	vsabove->deactivate();
@@ -353,46 +352,49 @@ if (state==2)
     code {delete dialog;
 delete window_preview;} {}
   }
-  Function {calcPreview()} {return_type void
+  Function {calcPreview()} {open return_type void
   } {
-    code {frac_cpp f;
-view_cpp v;
-realpal_cpp pal;
-colscheme_cpp col;
-cutbuf_cpp cut;
+    code {FractalPreferences fractal;
 
-bool ster = stereo->value() && stereo->active()
-	&& own->value();
+    bool ster = stereo->value() && stereo->active() && own->value();
 
-get(f, v, pal, col, cut);
+    get(fractal);
 
-double rx = v.xres;
-double ry = v.yres;
-if (!own->value()) {
-	rx = 80.0; ry = 60.0;
-}
-double ratio = rx/ry;
-int x = (int)(sqrt(ratio*preview_size->value())+0.5);
-int y = (int)((double)x/ratio+0.5);
-if (ster) x *= 2;
+    double rx = fractal.view()._xres;
+    double ry = fractal.view()._yres;
+    if (!own->value()) {
+        rx = 80.0;
+        ry = 60.0;
+    }
+    double ratio = rx / ry;
+    int x = (int)(sqrt(ratio * preview_size->value()) + 0.5);
+    int y = (int)((double)x / ratio + 0.5);
+    if (ster) {
+        x *= 2;
+    }
 
-if (Preview->w() != x || Preview->h() != y) {
-	window_preview->remove(Preview);
-	delete Preview;
-	window_preview->resize(window_preview->x(), window_preview->y(),
-		x+Fl::box_dw(window_preview->box())-1, y+Fl::box_dh(window_preview->box())-1);
-	window_preview->begin();
-	Preview = new JuliaPreview(Fl::box_dx(window_preview->box()), Fl::box_dy(window_preview->box()), x, y);
-	window_preview->end();
-}
+    if (Preview->w() != x || Preview->h() != y) {
+        window_preview->remove(Preview);
+        delete Preview;
+        window_preview->resize(window_preview->x(), window_preview->y(),
+            x + Fl::box_dw(window_preview->box()) - 1, y + Fl::box_dh(window_preview->box()) - 1);
+        window_preview->begin();
+        Preview = new JuliaPreview(Fl::box_dx(window_preview->box()), Fl::box_dy(window_preview->box()), x, y);
+        window_preview->end();
+    }
 
-Preview->setbutton3d(DoPreview);
-Preview->ownView(own->value());
-Preview->stereo(ster);
-Preview->set(f, v, pal, col, cut);
-Preview->CalcImage3D();
-return;} {}
+    Preview->setbutton3d(DoPreview);
+    Preview->ownView(own->value());
+    Preview->stereo(ster);
+    Preview->set(fractal);
+    Preview->CalcImage3D();} {}
   }
-  decl {int _state;} {}
-  decl {int _result;} {}
-} 
+  decl {int _state;} {private local
+  }
+  decl {int _result;} {private local
+  }
+  Function {updateView(const FractalView& view)} {open return_type void
+  } {
+    code {Intersection->setView(view);} {}
+  }
+}

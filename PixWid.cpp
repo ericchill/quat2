@@ -20,14 +20,11 @@
 /* along with this program; if not, write to the Free Software */
 /* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 #include "PixWid.h"
 #include <FL/fl_draw.H>
 
-const unsigned long PixWid::TYPE = 0x0a0b0d0d;
+constexpr unsigned long PixWid::TYPE = 0x0a0b0d0d;
 
 PixWid::PixWid(int x, int y, int w, int h, const char *label)
 	: Fl_Widget(x, y, w, h, label), _pixmap(0), _type(TYPE) {}
@@ -36,7 +33,7 @@ PixWid::~PixWid() {
 	delete _pixmap;
 }
 
-void PixWid::setPixmap(XPMCONST char *const* data) {
+void PixWid::setPixmap(const char * const * data) {
 	delete _pixmap;
 	_pixmap = new Fl_Pixmap(data);
 }

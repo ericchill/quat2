@@ -6,7 +6,7 @@
 #include <array>
 #include <vector>
 #include "qmath.h"
-//#include "iter.h"
+#include "parameters.h"
 
 struct iter_struct;
 struct calc_struct;
@@ -30,11 +30,12 @@ public:
 
 bool initGPU(int argc, char** argv);
 
+extern bool haveGPU;
 
 __host__ void getDeviceMemory(void** ptrOut, size_t nBytes);
 __host__ void freeDeviceMemory(void* ptrIn);
-__host__ void copyToGPU(void* devPtr, const void* hostPtr, size_t nBytes);
-__host__ void copyToCPU(void* hostPtr, const void* devPtr, size_t nBytes);
+__host__ void copyToGPU(void* devPtr, const void* hostPtr, size_t nBytes, cudaStream_t stream=0);
+__host__ void copyToCPU(void* hostPtr, const void* devPtr, size_t nBytes, cudaStream_t stream=0);
 
 
 template<typename T>
@@ -42,6 +43,24 @@ class CUDAStorage {
     void* _mem;
     size_t _nElems;
 public:
+    static T* allocHost(size_t nElems = 1) {
+        void* result;
+        cudaError_t cudaStatus = cudaMallocHost(&result, nElems * sizeof(T));
+        if (cudaSuccess != cudaStatus) {
+            throw CUDAException("Can't allocate host memory", cudaStatus);
+        }
+        return static_cast<T*>(result);
+    }
+    static void freeHost(T* p) {
+        cudaError_t cudaStatus = cudaFreeHost(p);
+        if (cudaSuccess != cudaStatus) {
+            throw CUDAException("Can't free host memory", cudaStatus);
+        }
+    }
+
+    explicit CUDAStorage() : _nElems(1) {
+        allocate();
+    }
     explicit CUDAStorage(size_t nElems) : _nElems(nElems) {
         allocate();
     };
@@ -66,16 +85,16 @@ public:
     T* devicePtr() {
         return static_cast<T*>(_mem);
     }
-    void copyToGPU(const T* p) {
+    void copyToGPU(const T* p, cudaStream_t stream=0) {
         ::copyToGPU(_mem, p, _nElems * sizeof(T));
     }
-    void copyToGPU(const std::vector<T>& v) {
+    void copyToGPU(const std::vector<T>& v, cudaStream_t stream=0) {
         ::copyToGPU(_mem, v.data(), v.size * sizeof(T));
     }
-    void copyToCPU(T* p) {
+    void copyToCPU(T* p, cudaStream_t stream=0) {
         ::copyToCPU(p, _mem, _nElems * sizeof(T));
     }
-    void copyToCPU(std::vector<T>& v) {
+    void copyToCPU(std::vector<T>& v, cudaStream_t stream=0) {
         ::copyToCPU((void*)v.data(), _mem, v.size() * sizeof(T));
     }
 private:
@@ -85,15 +104,33 @@ private:
 };
 
 
-void setMaxIter(int maxIter);
-void setBailout(int bailout);
+struct obj_distance_kernel_args {
+    Quat c;
+    Quat p[4];
+    Quat zBase;
+    size_t nCuts;
+    Vec3 cutNormals[CutSpec::maxCuts];
+    Vec3 cutPoints[CutSpec::maxCuts];
+};
 
 
-void run_many_search_driver(iter_struct& is, const std::vector<Quat>& positions, std::vector<int>& results);
+class GPURowCalculator {
+public:
+    GPURowCalculator(const calc_struct& cs, size_t lBufSize);
+    virtual ~GPURowCalculator();
 
+    void obj_distances(
+        calc_struct& cs, size_t N, const Quat* xStarts,
+        Quat* orbits, double* distances, double* lastIters);
 
-void row_of_initial_obj_distance_driver(calc_struct& cs, int numXs, const Quat* positions, const Quat& zbase, const int (*zvals)[2], int* zResults);
-
-void row_of_obj_with_orbits_driver(calc_struct& cs, size_t N, const Quat* xStarts, const Quat& zBase, const int(*zLimits)[2], Quat* orbits, double* distances, double* lastIters);
-
-void addQuatArrays(Quat* dst, const Quat* a, const Quat* b, int n);
+private:
+    size_t _arraySize;
+    obj_distance_kernel_args _kernelArgs;
+    CUDAStorage<obj_distance_kernel_args> _kernelArgsGPU;
+    CUDAStorage<Quat>* _xStarts;
+    CUDAStorage<Quat>* _orbits;
+    CUDAStorage<double>* _distances;
+    CUDAStorage<double>* _lastIters;
+    cudaStream_t _stream;
+    cudaStream_t _stream2;
+};

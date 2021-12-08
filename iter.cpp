@@ -20,9 +20,6 @@
 /* along with this program; if not, write to the Free Software */
 /* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 #include <ctype.h>
 
@@ -40,7 +37,6 @@
 
 #include "kernel.h"
 
-
 #include <crtdbg.h>
 
 static bool cutnorm(const Quat& x1, const Quat& x2, Quat& n, const CutSpec& cutbuf);
@@ -49,15 +45,19 @@ int iterate_0(iter_struct* is) {
     Quat* orbit = is->orbit;
     double bailout = is->bailout;
     int maxiter = is->maxiter;
+    int maxOrbit = is->maxOrbit;
     Quat z = is->xstart;
     orbit[0] = z;
-    double zMag2 = z.magnitudeSquared();
     int iter = 0;
-    while (zMag2 < bailout && iter < maxiter) {
+    while (z.magnitudeSquared() < bailout && iter < maxOrbit && iter < maxiter) {
         z = z.squared() - is->c;
-        zMag2 = z.magnitudeSquared();
         orbit[++iter] = z;
     }
+    while (z.magnitudeSquared() < bailout && iter < maxiter) {
+        z = z.squared() - is->c;
+        ++iter;
+    }
+    orbit[maxOrbit - 1] = z;
     return iter;
 }
 
@@ -65,11 +65,9 @@ int iterate_0_no_orbit(iter_struct* is) {
     double bailout = is->bailout;
     int maxiter = is->maxiter;
     Quat z = is->xstart;
-    double zMag2 = z.magnitudeSquared();
     int iter = 0;
-    while (zMag2 < bailout && iter < maxiter) {
+    while (z.magnitudeSquared() < bailout && iter < maxiter) {
         z = z.squared() - is->c;
-        zMag2 = z.magnitudeSquared();
         ++iter;
     }
     return iter;
@@ -129,15 +127,19 @@ int iterate_1(iter_struct* is) {
     Quat* orbit = is->orbit;
     double bailout = is->bailout;
     int maxiter = is->maxiter;
+    int maxOrbit = is->maxOrbit;
     Quat z = is->xstart;
     orbit[0] = z;
-    double zMag2 = z.magnitudeSquared();
     int iter = 0;
-    while (zMag2 < bailout && iter < maxiter) {
+    while (z.magnitudeSquared() < bailout && iter < maxOrbit && iter < maxiter) {
         z = is->c * z * (1.0 - z);
-        zMag2 = z.magnitudeSquared();
         orbit[++iter] = z;
     }
+    while (z.magnitudeSquared() < bailout && iter < maxiter) {
+        z = is->c * z * (1.0 - z);
+        ++iter;
+    }
+    orbit[maxOrbit - 1] = z;
     return iter;
 }
 
@@ -146,11 +148,10 @@ int iterate_1_no_orbit(iter_struct* is) {
     double bailout = is->bailout;
     int maxiter = is->maxiter;
     Quat z = is->xstart;
-    double zMag2 = z.magnitudeSquared();
+
     int iter = 0;
-    while (zMag2 < bailout && iter < maxiter) {
+    while (z.magnitudeSquared() < bailout && iter < maxiter) {
         z = is->c * z * (1.0 - z);
-        zMag2 = z.magnitudeSquared();
         iter++;
     }
     return iter;
@@ -265,19 +266,22 @@ int iterate_2(iter_struct* is) {
 
     double bailout = is->bailout;
     int maxiter = is->maxiter;
+    int maxOrbit = is->maxOrbit;
 
     Quat z = is->xstart;
     orbit[0] = z;
 
     int iter = 0;
-    double xss = z.magnitudeSquared();
 
-    while (xss < bailout && iter < maxiter) {
+    while (z.magnitudeSquared() < bailout && iter < maxOrbit && iter < maxiter) {
         z = z * log(z) - is->c;
-        orbit[iter++] = z;
-        xss = z.magnitudeSquared();
+        orbit[++iter] = z;
     }
-
+    while (z.magnitudeSquared() < bailout && iter < maxiter) {
+        z = z * log(z) - is->c;
+        ++iter;
+    }
+    orbit[maxOrbit - 1] = z;
     return iter;
 }
 
@@ -289,12 +293,9 @@ int iterate_2_no_orbit(iter_struct* is) {
     Quat z = is->xstart;
 
     int iter = 0;
-    double xss = z.magnitudeSquared();
-
-    while (xss < bailout && iter < maxiter) {
+    while (z.magnitudeSquared() < bailout && iter < maxiter) {
         z = z * log(z) - is->c;
         iter++;
-        xss = z.magnitudeSquared();
     }
 
     return iter;
@@ -308,19 +309,21 @@ int iterate_3(iter_struct* is) {
 
     double bailout = is->bailout;
     int maxiter = is->maxiter;
+    int maxOrbit = is->maxOrbit;
 
     Quat z = is->xstart;
     orbit[0] = z;
 
     int iter = 0;
-    double xss = z.magnitudeSquared();
-
-    while (xss < bailout && iter < maxiter) {
+    while (z.magnitudeSquared() < bailout && iter < maxOrbit && iter < maxiter) {
         z = z.squared() * z - is->c;
         orbit[iter++] = z;
-        xss = z.magnitudeSquared();
     }
-
+    while (z.magnitudeSquared() < bailout && iter < maxiter) {
+        z = z.squared() * z - is->c;
+        ++iter;
+    }
+    orbit[maxOrbit - 1] = z;
     return iter;
 }
 
@@ -332,14 +335,10 @@ int iterate_3_no_orbit(iter_struct* is) {
     Quat z = is->xstart;
 
     int iter = 0;
-    double xss = z.magnitudeSquared();
-
-    while (xss < bailout && iter < maxiter) {
+    while (z.magnitudeSquared() < bailout && iter < maxiter) {
         z = z.squared() * z - is->c;
         iter++;
-        xss = z.magnitudeSquared();
     }
-
     return iter;
 }
 
@@ -347,25 +346,27 @@ int iterate_3_no_orbit(iter_struct* is) {
 int iterate_4(iter_struct* is) {
     double bailout = is->bailout;
     int maxiter = is->maxiter;
+    int maxOrbit = is->maxOrbit;
 
     assert(is->orbit != NULL);
     Quat* orbit = is->orbit;
-    orbit[0] = is->xstart;
-    double xss = is->xstart.magnitudeSquared();
+    Quat z = is->xstart;
+    orbit[0] = z;
 
     int iter = 0;
     int olditer = -1;
 
-    while (xss < bailout && iter < maxiter) {
-        ++iter;
-        ++olditer;
-        Quat px = pow(orbit[olditer], is->p[0]);
-        orbit[iter] = px - is->c;
-        xss = orbit[iter].magnitudeSquared();
-        if (xss > 1E100) {
-            return -1;
-        }
+    while (!isnan(z[0]) && z.magnitudeSquared() < bailout && iter < maxOrbit && iter < maxiter) {
+        Quat px = pow(z, is->p[0]);
+        z = px - is->c;
+        orbit[++iter] = z;
     }
+    while (!isnan(z[0]) && z.magnitudeSquared() < bailout && iter < maxiter) {
+        Quat px = pow(z, is->p[0]);
+        z = px - is->c;
+        ++iter;
+    }
+    orbit[maxOrbit - 1] = z;
     return iter;
 }
 
@@ -374,18 +375,12 @@ int iterate_4_no_orbit(iter_struct* is) {
     int maxiter = is->maxiter;
 
     Quat z = is->xstart;
-    double xss = is->xstart.magnitudeSquared();
 
     int iter = 0;
-
-    while (xss < bailout && iter < maxiter) {
-        ++iter;
+    while (!isnan(z[0]) && z.magnitudeSquared() < bailout && iter < maxiter) {
         Quat px = pow(z, is->p[0]);
         z = px - is->c;
-        xss = z.magnitudeSquared();
-        if (xss > 1E100) {
-            return -1;
-        }
+        ++iter;
     }
     return iter;
 }
@@ -548,7 +543,7 @@ int FractalView::DoCalcbase(
     return 0;
 }
 
-double whichEyeToSign(WhichEye eye) {
+double whichEyeSign(WhichEye eye) {
     switch (eye) {
     default:  // VS2019 compiler can't tell the rest of the cases are exhaustive.
     case WhichEye::Monocular:
@@ -571,7 +566,7 @@ int FractalView::calcbase(ViewBasis* base, ViewBasis* sbase, WhichEye viewType) 
     commonbase = *base;
     if (viewType != WhichEye::Monocular) {
         FractalView v2 = *this;
-        v2._s += whichEyeToSign(viewType) * _interocular / 2 * base->_x;
+        v2._s += whichEyeSign(viewType) * _interocular / 2 * base->_x;
         y = base->_y;
         e = v2.DoCalcbase(base, sbase, true, y);
         if (e != 0) {
@@ -591,30 +586,6 @@ int FractalView::calcbase(ViewBasis* base, ViewBasis* sbase, WhichEye viewType) 
 /* Determines the distance from object to point c->xcalc on viewplane
    in _z direction.
    In other words: looks for the object in _z direction */
-void calc_struct::obj_distance_search_range(const Vec3& xStart, int& zFrom, int& zTo) {
-    bool haveStart = false;
-    zFrom = zTo = -1;
-    for (int z = 0; z < _v._zres; z++) {
-        Vec3 p = xStart + z * _sbase._z;
-        if (!_cuts.cutaway(p)) {
-            if (!haveStart) {
-                zFrom = z;
-                haveStart = true;
-            }
-        } else if (haveStart) {
-            zTo = z;
-            return;
-        }
-    }
-    if (haveStart) {
-        zTo = _v._zres;
-    }
-}
-
-
-/* Determines the distance from object to point c->xcalc on viewplane
-   in _z direction.
-   In other words: looks for the object in _z direction */
 double calc_struct::obj_distance(int zStart) {
 
     int z, z2;
@@ -627,6 +598,7 @@ double calc_struct::obj_distance(int zStart) {
 
     is.bailout = _f._bailout;
     is.maxiter = _f._maxiter;
+    is.maxOrbit = _f._maxOrbit;
     is.exactiter = 0;
 
     for (int i = 0; i < 4; i++) {
@@ -723,7 +695,7 @@ double FractalView::brightness(const Vec3& p, const Vec3& n, const Vec3& z) cons
       1..calc ZBuffer from scratch;
       2..calc image from ZBuffer
 */
-float calc_struct::brightpoint(long x, int y, double* lBuf) {
+float calc_struct::brightpoint(int x, int y, double* lBuf) {
     long xa, ya;
     Quat xp;
     double absolute = 0.0;
@@ -774,58 +746,33 @@ float calc_struct::brightpoint(long x, int y, double* lBuf) {
     return static_cast<float>(bBuf);
 }
 
-void object_distance_cpu_kernel(calc_struct& cs, const Quat& xStart, const Quat& zBase, const int* zLimits, int& zResults) {
-    if (zLimits[0] == -1) {
-        zResults = -1;
-        return;
-    }
-    iter_struct is;
-    is.c = cs._f._c;
-    is.bailout = cs._f._bailout;
-    is.maxiter = cs._f._maxiter;
-    is.exactiter = 0;
-    is.orbit = &GlobalOrbit[1];
-    for (int z = zLimits[0]; z < zLimits[1]; z++) {
-        Quat xs = xStart + static_cast<double>(z) * zBase;
-        is.xstart = xs;
-        int iter = cs._iterate_no_orbit(&is);
-        if (iter == is.maxiter) {
-            zResults = z;
-            return;
-        }
-    }
-    zResults = -1;
-}
-
-void getObjectDistances(calc_struct& cs, int N, const Quat* xStarts, const Quat& zBase, const int(*zLimits)[2], int* zResults) {
-    for (int i = 0; i < N; i++) {
-        object_distance_cpu_kernel(cs, xStarts[i], zBase, zLimits[i], zResults[i]);
-    }
-}
-
-void obj_distance_w_orbit_CPU(calc_struct& cs, int N, const Quat& zBase) {
-    for (int i = 0; i < N; i++) {
+void row_of_obj_distance_CPU(calc_struct& cs, size_t N, const Quat& zBase) {
+    for (size_t i = 0; i < N; i++) {
         double refinement = 20.0;
-
-        //for (int i = 0; i < 4; i++) {
-        //    is.p[i] = _f._p[i];
-        //}
         Quat xStart = cs._xStarts[i];
         int iter = -1;
 
         iter_struct is;
+        for (int i = 0; i < 4; i++) {
+            is.p[i] = cs._f._p[i];
+        }
         is.c = cs._f._c;
         is.bailout = cs._f._bailout;
         is.maxiter = cs._f._maxiter;
+        is.maxOrbit = cs._f._maxOrbit;
         is.exactiter = 0;
-        is.orbit = &cs._manyOrbits[i * (cs._f._maxiter + 2)];
+        is.orbit = &cs._manyOrbits[i * (cs._f._maxOrbit + 2)];
         int z, z2;
-        for (z = cs._zLimits[i][0]; z < cs._zLimits[i][1] && iter != is.maxiter; z++) {
+        for (z = 0; z < cs._v._zres && iter != is.maxiter; z++) {
             Quat z0 = xStart + static_cast<double>(z) * zBase;
             is.xstart = z0;
-            iter = cs._iterate_no_orbit(&is);
+            if (!cs._cuts.cutaway(z0)) {
+                iter = cs._iterate_no_orbit(&is);
+            } else {
+                iter = 0;
+            }
         }
-        if (z < cs._zLimits[i][1]) {
+        if (z < cs._v._zres) {
             z--;
             for (z2 = 1; z2 <= refinement && iter == is.maxiter; z2++) {
                 Quat z0 = xStart + static_cast<double>(z - z2 / refinement) * zBase;
@@ -840,145 +787,11 @@ void obj_distance_w_orbit_CPU(calc_struct& cs, int N, const Quat& zBase) {
         cs._distances[i] = floor(static_cast<double>(z - z2 / refinement) * 1000.0 + 0.5) / 1000.0;
     }
 }
-/*
-   Calculate _a whole line of depths, brightnesses and colors
-   All fields (for xs, xq, xcalc only ..[3]=lvalue) in calc_struct
-   MUST be filled in!
-   Especially xp must be set to the beginning of the line to calculate
-   c->xp used for 4d-beginning of line,
-   c->xs used for 4d-point in view plane that is worked on,
-   c->xq used for 4d-point on object (filled in by brightpoint,
-   used by colorizepoint)
-   c->xcalc used for 4d point to calculate (fctn. obj_distance)
-   (all to avoid double calculations, speed)
-   zflag:
-      0..calc image from scratch;
-      1..calc ZBuffer from scratch;
-      2..calc image from ZBuffer
-*/
-int calc_struct::calcline2(
-    long x1, long x2, int y,
-    double* lBuf, float* bBuf, float* cBuf,
-    ZFlag zflag) {
-    long x, xaa, yaa;
-    iter_struct is;
-    int antialiasing = _v._antialiasing;
-    int aaSquared = antialiasing * antialiasing;
 
-    is.c = _f._c;
-    is.bailout = _f._bailout;
-    is.maxiter = _f._maxiter;
-    is.exactiter = 0;
-
-    for (int i = 0; i < 4; i++) {
-        is.p[i] = _f._p[i];
-    }
-    is.xstart[3] = _f._lTerm;
-    _xs = _xp + (x1 - 1) * _sbase._x;
-    memset(_zLimits, 0xff, 2 * _lBufSize * sizeof(int));
-    if (0 == _cuts.count()) {
-        for (x = x1; x <= x2; x++) {
-            _xs += _sbase._x;
-            int lbufIdx = (x + _v._xres) * antialiasing;
-            _xStarts[lbufIdx] = _xs;
-            _zLimits[lbufIdx][0] = 0;
-            _zLimits[lbufIdx][1] = _v._zres;
-        }
-    } else {
-        for (x = x1; x <= x2; x++) {
-            _xs += _sbase._x;
-            int lbufIdx = (x + _v._xres) * antialiasing;
-            _xStarts[lbufIdx] = _xs;
-            obj_distance_search_range(_xs, _zLimits[lbufIdx][0], _zLimits[lbufIdx][1]);
-        }
-    }
-#define USE_MORE_GPU
-#ifdef USE_MORE_GPU
-    _xs = _xp + (x1 - 1) * _sbase._x;
-    for (x = x1; x <= x2; x++) {
-        _xs += _sbase._x;
-        int lbufIdx = (x + _v._xres) * antialiasing;
-        int zStart = _zLimits[lbufIdx][0];
-        if (-1 != zStart) {
-            for (yaa = 0; yaa < antialiasing; yaa++) {
-                for (xaa = 0; xaa < antialiasing; xaa++) {
-                    lbufIdx = ((yaa + 1) * _v._xres + x) * antialiasing + xaa;
-                    _xStarts[lbufIdx] = _xs + Quat(yaa * _aabase._y + xaa * _aabase._y);
-                }
-            }
-        }
-    }
-    //obj_distance_w_orbit_CPU(*this, lBufSize, xStarts.ptr(), Quat(_sbase._z), zRanges.ptr(), manyOrbits, distances, lastIters);
-    row_of_obj_with_orbits_driver(*this, _lBufSize, _xStarts, _sbase._z, _zLimits, _manyOrbits, _distances, _lastIters);
-    for (x = x1; x <= x2; x++) {
-        int lbufIdx = (x + _v._xres) * antialiasing;
-        lBuf[lbufIdx] = _distances[lbufIdx];
-        if (-1 != _zLimits[lbufIdx][0]) {
-            double itersum = 0; // _lastIters[lbufIdx];
-            for (yaa = 0; yaa < antialiasing; yaa++) {
-                for (xaa = 0; xaa < antialiasing; xaa++) {
-                    if (xaa != 0 || yaa != 0) {
-                        int aaLbufIdx = ((yaa + 1) * _v._xres + x) * antialiasing + xaa;
-                        lBuf[aaLbufIdx] = _distances[aaLbufIdx];
-                        itersum += _lastIters[aaLbufIdx];
-                    }
-                }
-            }
-            _lastIters[lbufIdx] = itersum / aaSquared;
-        }
-    }
-#else
-    _xs = _xp + (x1 - 1) * _sbase._x;
-    for (x = x1; x <= x2; x++) {
-        _xs += _sbase._x;
-        _xcalc = _xs;
-        int lbufIdx = (x + _v._xres) * antialiasing;
-        int zStart = _zLimits[lbufIdx][0];
-        if (-1 != zStart) {
-            GlobalOrbit = &_manyOrbits[lbufIdx * (_f._maxiter + 2)];
-            is.orbit = GlobalOrbit;
-            lBuf[lbufIdx] = obj_distance(zStart);
-            double itersum = 0;
-            for (yaa = 0; yaa < antialiasing; yaa++) {
-                for (xaa = 0; xaa < antialiasing; xaa++) {
-                    if (xaa != 0 || yaa != 0) {
-                        _xcalc = _xs + yaa * _aabase._y + xaa * _aabase._y;
-                        GlobalOrbit = &_manyOrbits[lbufIdx * (_f._maxiter + 2)];
-                        is.orbit = GlobalOrbit;
-                        lBuf[((yaa + 1) * _v._xres + x) * antialiasing + xaa] = obj_distance(zStart);
-                        itersum += _f._lastiter;
-                    }
-                }
-            }
-            _f._lastiter = itersum / aaSquared;
-        }
-    }
-#endif
-    for (x = x1; x <= x2; x++) {
-        size_t lBufIdx = (x + _v._xres) * antialiasing;
-        if (lBuf[lBufIdx] != _v._zres) {
-            if (shouldCalculateImage(zflag)) {
-                bBuf[x] = brightpoint(x, y, lBuf);
-                if (bBuf[x] > 0.0001) {
-                    is.xstart = _xq;
-                    GlobalOrbit = &_manyOrbits[lBufIdx * (_f._maxiter + 2)];
-#ifdef USE_MORE_GPU
-                    _f._lastiter = _lastIters[lBufIdx];
-#else
-                    is.orbit = GlobalOrbit;
-                    _f._lastiter = _iterate(&is);
-#endif
-                    MAXITER = _f._maxiter;
-                    LASTITER = _f._lastiter;
-                    cBuf[x] = colorizepoint();
-                }
-            }
-        } else if (shouldCalculateImage(zflag)) {
-            bBuf[x] = 0;
-        }
-    }
-    return 0;
+inline int aaLBufIndex(int x, int xaa, int yaa, int xres, int aa) {
+    return ((yaa + 1) * xres + x) * aa + xaa;
 }
+
 
 /*
    Calculate _a whole line of depths, brightnesses and colors
@@ -997,61 +810,67 @@ int calc_struct::calcline2(
       2..calc image from ZBuffer
 */
 int calc_struct::calcline(
-    long x1, long x2, int y,
+    GPURowCalculator& rowCalc,
+    int x1, int x2, int y,
     double* lBuf, float* bBuf, float* cBuf,
     ZFlag zflag) {
-    long x, xaa, yaa;
+    int x, xaa, yaa;
     iter_struct is;
     int antialiasing = _v._antialiasing;
-
-    assert(GlobalOrbit != NULL);
+    int aaSquared = antialiasing * antialiasing;
 
     is.c = _f._c;
     is.bailout = _f._bailout;
     is.maxiter = _f._maxiter;
+    is.maxOrbit = _f._maxOrbit;
     is.exactiter = 0;
 
     for (int i = 0; i < 4; i++) {
         is.p[i] = _f._p[i];
     }
-    is.orbit = &GlobalOrbit[1];
     is.xstart[3] = _f._lTerm;
     _xs = _xp + (x1 - 1) * _sbase._x;
     for (x = x1; x <= x2; x++) {
         _xs += _sbase._x;
-        _xcalc = _xs;
-        if (shouldCalculateDepths(zflag)) {
-            int lbufIdx = (x + _v._xres) * antialiasing;  // +xres gets to right eye
-            lBuf[lbufIdx] = obj_distance();
-            if (lBuf[lbufIdx] != _v._zres) {
-                double itersum = 0;
-                for (yaa = 0; yaa < antialiasing; yaa++) {
-                    for (xaa = 0; xaa < antialiasing; xaa++) {
-                        if (xaa != 0 || yaa != 0) {
-                            _xcalc = _xs + yaa * _aabase._y + xaa * _aabase._y;
-                            lBuf[((yaa + 1) * _v._xres + x) * antialiasing + xaa] = obj_distance();
-                            itersum += _f._lastiter;
-                        }
-                    }
-                }
-                _f._lastiter = itersum / (antialiasing * antialiasing);
-            } else {
-                for (yaa = 0; yaa < antialiasing; yaa++) {
-                    for (xaa = 0; xaa < antialiasing; xaa++) {
-                        lBuf[((yaa + 1) * _v._xres + x) * antialiasing + xaa] = static_cast<float>(_v._zres);
+        int lbufIdx = (x + _v._xres) * antialiasing;
+        for (yaa = 0; yaa < antialiasing; yaa++) {
+            for (xaa = 0; xaa < antialiasing; xaa++) {
+                    int aaLbufIdx = aaLBufIndex(x, xaa, yaa, _v._xres, antialiasing);
+                    _xStarts[aaLbufIdx] = _xs + yaa * _aabase._y + xaa * _aabase._x;
+            }
+        }
+    }
+    if (haveGPU) {
+        rowCalc.obj_distances(
+            *this, _lBufSize, _xStarts,
+            _manyOrbits, _distances, _lastIters);
+    } else {
+        row_of_obj_distance_CPU(*this, _lBufSize, _sbase._z);
+    }
+    for (x = x1; x <= x2; x++) {
+        int lbufIdx = (x + _v._xres) * antialiasing;
+        lBuf[lbufIdx] = _distances[lbufIdx];
+        if (lBuf[lbufIdx] != _v._zres) {
+            double itersum = _lastIters[lbufIdx];
+            for (yaa = 0; yaa < antialiasing; yaa++) {
+                for (xaa = 0; xaa < antialiasing; xaa++) {
+                    if (xaa != 0 || yaa != 0) {
+                        int aaLbufIdx = aaLBufIndex(x, xaa, yaa, _v._xres, antialiasing);
+                        lBuf[aaLbufIdx] = _distances[aaLbufIdx];
+                        itersum += _lastIters[aaLbufIdx];
                     }
                 }
             }
-        }
-        if (lBuf[(x + _v._xres) * antialiasing] != _v._zres) {
+            _lastIters[lbufIdx] = itersum / aaSquared;
             if (shouldCalculateImage(zflag)) {
-                /* an image has to be calculated */
                 bBuf[x] = brightpoint(x, y, lBuf);
                 if (bBuf[x] > 0.0001) {
                     is.xstart = _xq;
-                    _f._lastiter = _iterate(&is);
+                    GlobalOrbit = &_manyOrbits[lbufIdx * (_f._maxOrbit + 2)];
+                    _f._lastiter = _lastIters[lbufIdx];
                     MAXITER = _f._maxiter;
                     LASTITER = _f._lastiter;
+                    LASTORBIT = std::min<double>(LASTITER, _f._maxOrbit);
                     cBuf[x] = colorizepoint();
                 }
             }
@@ -1066,7 +885,6 @@ extern progtype prog;
 
 /* finds color for the point c->xq */
 float calc_struct::colorizepoint() {
-    /* Handles for variables */
     static size_t xh = progtype::nullHandle, yh = progtype::nullHandle, zh = progtype::nullHandle, wh = progtype::nullHandle;
     static size_t xbh = progtype::nullHandle, ybh = progtype::nullHandle, zbh = progtype::nullHandle, wbh = progtype::nullHandle;
     static size_t mih = progtype::nullHandle, lih = progtype::nullHandle;
@@ -1080,13 +898,14 @@ float calc_struct::colorizepoint() {
     prog.setVariable("z", &zh, _xq[2]);
     prog.setVariable("w", &wh, _xq[3]);
 
-    prog.setVariable("xb", &xbh, GlobalOrbit[(int)LASTITER][0]);
-    prog.setVariable("yb", &ybh, GlobalOrbit[(int)LASTITER][1]);
-    prog.setVariable("zb", &zbh, GlobalOrbit[(int)LASTITER][2]);
-    prog.setVariable("wb", &wbh, GlobalOrbit[(int)LASTITER][3]);
+    prog.setVariable("xb", &xbh, GlobalOrbit[_f._maxOrbit - 1][0]);
+    prog.setVariable("yb", &ybh, GlobalOrbit[_f._maxOrbit - 1][1]);
+    prog.setVariable("zb", &zbh, GlobalOrbit[_f._maxOrbit - 1][2]);
+    prog.setVariable("wb", &wbh, GlobalOrbit[_f._maxOrbit - 1][3]);
 
     prog.setVariable("maxiter", &mih, MAXITER);
     prog.setVariable("lastiter", &lih, LASTITER);
+    prog.setVariable("lastorbit", &lih, LASTORBIT);
 
     double CBuf = prog.calculate(&notdef);
 
@@ -1153,17 +972,15 @@ calc_struct::calc_struct(
 
     _lBufSize = _v._xres * _v._antialiasing * (_v._antialiasing + 1L) + 10;
 
-    _zLimits = new int[_lBufSize][2];
-    _xStarts = new Quat[_lBufSize];
-    _manyOrbits = new Quat[_lBufSize * (fractal._maxiter + 2)];
-    _distances = new double[_lBufSize];
-    _lastIters = new double[_lBufSize];
+    _xStarts = CUDAStorage<Quat>::allocHost(_lBufSize);
+    _manyOrbits = CUDAStorage<Quat>::allocHost(_lBufSize * (fractal._maxOrbit + 2));
+    _distances = CUDAStorage<double>::allocHost(_lBufSize);
+    _lastIters = CUDAStorage<double>::allocHost(_lBufSize);
 }
 
 calc_struct::~calc_struct() {
-    delete [] _zLimits;
-    delete _xStarts;
-    delete _manyOrbits;
-    delete _distances;
-    delete _lastIters;
+    CUDAStorage<Quat>::freeHost(_xStarts);
+    CUDAStorage<Quat>::freeHost(_manyOrbits);
+    CUDAStorage<double>::freeHost(_distances);
+    CUDAStorage<double>::freeHost(_lastIters);
 }

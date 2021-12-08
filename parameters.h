@@ -62,6 +62,7 @@ public:
         _c = f._c;
         _bailout = f._bailout;
         _maxiter = f._maxiter;
+        _maxOrbit = f._maxOrbit;
         _lastiter = f._lastiter;
         _lTerm = f._lTerm;
         _formula = f._formula;
@@ -75,16 +76,19 @@ public:
         int maxiter,
         double lvalue,
         int formula,
-        const Quat* const p) {
+        const Quat* const p,
+        int maxOrbit=100) {
         _c = c;
         _bailout = bailout;
         _maxiter = maxiter;
+        _maxOrbit = maxOrbit;
         _lTerm = lvalue;
         _formula = formula;
         for (size_t i = 0; i < numPowers; i++) {
             _p[i] = p[i];
         }
         _lastiter = 0;
+   
     }
     void reset();
     void print() const;
@@ -112,6 +116,7 @@ public:
     int _formula;
     static constexpr size_t numPowers = 4;
     Quat _p[numPowers];
+    int _maxOrbit;
 };
 
 FractalSpec tag_invoke(const json::value_to_tag< FractalSpec >&, json::value const& jv);
@@ -122,7 +127,7 @@ enum class WhichEye {
     Right,
     Left
 };
-double whichEyeToSign(WhichEye eye);
+double whichEyeSign(WhichEye eye);
 
 
 class FractalView : public JSONSerializable {
@@ -234,6 +239,8 @@ public:
     bool setPlane(size_t i, const Vec3& normal, const Vec3& point);
     bool addPlane(const Vec3& normal, const Vec3& point);
     bool deletePlane(size_t i);
+    const Vec3* normals() const { return _normal; }
+    const Vec3* points() const { return _point; }
 
     bool cutaway(const Vec3 x) const;
     bool cutnorm(const Quat& x1, const Quat& x2, Quat& nq) const;
@@ -242,7 +249,6 @@ public:
     virtual json::value toJSON() const;
 
     static constexpr size_t maxCuts = 6;
-    static constexpr size_t cutBufSize = 140;
     /* intersection objects definitions (only planes for now) */
     /* every structure in this section must have */
     /* _a char "cut_type" as first element */
@@ -323,6 +329,7 @@ FractalPreferences tag_invoke(const json::value_to_tag< FractalPreferences >&, j
 
 
 struct iter_struct;
+class GPURowCalculator;
 
 struct calc_struct {
     calc_struct(
@@ -357,19 +364,14 @@ struct calc_struct {
               1..calc ZBuffer from scratch;
               2..calc image from ZBuffer */
               /* if zflag==2, LBuf must be initialized with the depths from the ZBuffer */
-    int calcline2(long x1, long x2, int y,
+    int calcline(GPURowCalculator& rowCalc, int x1, int x2, int y,
         double* LBuf, float* BBuf, float* CBuf,
         ZFlag zflag);
-    int calcline(long x1, long x2, int y,
-        double* LBuf, float* BBuf, float* CBuf,
-        ZFlag zflag);
-    void obj_distance_search_range(const Vec3& xStart, int& zFrom, int& zTo);
     double obj_distance(int zStart = 0);
     float colorizepoint();
-    float brightpoint(long x, int y, double* LBuf);
+    float brightpoint(int x, int y, double* LBuf);
 
     size_t _lBufSize;
-    int(*_zLimits)[2];
     Quat* _xStarts;
     Quat* _manyOrbits;
     double* _distances;

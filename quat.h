@@ -16,7 +16,6 @@ int DUMMY_check_event(void);
 int DUMMY_Change_Name(const char* s);
 void DUMMY_eol(int line);
 
-int ParseAndCalculate(std::ostream& errorMsg, const char* file, char zflag);
 int TranslateColorFormula(std::ostream& errorMsg, const char* colscheme);
 int formatExternToIntern(FractalSpec& frac, FractalView& view);
 int formatInternToExtern(FractalSpec& frac, FractalView& view);
@@ -32,7 +31,6 @@ int CreateImage(
     std::ostream& errorMsg,
     int* xstart, int* ystart,
     FractalPreferences& prefs,
-    int pixelsPerCheck,
     ZFlag zflag,
     LinePutter& lineDst);
 
@@ -44,7 +42,6 @@ int CreateZBuf(
     int* xstart,
     int* ystart,
     FractalPreferences& fractal,
-    int pixelsPerCheck,
     LinePutter& lineDst);
 
 int InitGraphics(
@@ -54,11 +51,11 @@ int InitGraphics(
     int* xadd, int* yadd, 
     bool useZBuf);
 
-/* pngfile: string of filename, without path (only for title bar) */
-/* png: _opened_ png file */
-/* png file returns _closed_ */
+/* pngfile: string of basename, without path (only for title bar) */
+/* png: _opened_ png filename */
+/* png filename returns _closed_ */
 /*      and initialized (png_info, png_internal) */
-/* if png==NULL, no file is written */
+/* if png==NULL, no filename is written */
 /* also closes graphics, resets keyboard mode */
 /* wants external format for light-source and bailout */
 /* zflag: decides what to calculate,
@@ -76,7 +73,6 @@ int CalculateFractal(
     ZFlag zflag,
     int* xstart, int* ystart,
     /* int xadd, int yadd, */
-    int noev,
     ViewBasis* rbase,
     ViewBasis* srbase,
     ViewBasis* lbase,
@@ -90,6 +86,7 @@ extern time_t calc_time;
 extern Quat* GlobalOrbit;
 #define MAXITER (GlobalOrbit[0][0])
 #define LASTITER (GlobalOrbit[0][1])
+#define LASTORBIT (GlobalOrbit[0][2])
 
 
 #endif /* QUAT_KERNEL_QUAT_H */

@@ -1,10 +1,7 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0100 
-header_name {.h} 
-code_name {.cxx} 
-gridx 5 
-gridy 5 
-snap 3
+version 1.0304
+header_name {.h}
+code_name {.cpp}
 decl {// Quat - A 3D fractal generation program
 // Eric C. Hill <eric@stochastic.com>
 // Original Copyright (C) 1997-2000 Dirk Meyer
@@ -26,46 +23,46 @@ decl {// Quat - A 3D fractal generation program
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.} {} 
+// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.} {private local
+}
 
-declblock {\#ifdef HAVE_CONFIG_H} {after {\#endif}
-} {
-  decl {\#include <config.h>} {}
-} 
+decl {\#include <FL/Fl_Group.H>} {public local
+}
 
-decl {\#include <FL/Fl_Group.H>} {public
-} 
+decl {\#include <FL/Fl_Color_Chooser.H>} {private local
+}
 
-decl {\#include <FL/Fl_Color_Chooser.H>} {} 
+decl {class ColorPreview;} {public local
+}
 
-decl {class ColorPreview;} {public
-} 
+decl {class ColorClipboard;} {public local
+}
 
-decl {class ColorClipboard;} {public
-} 
+decl {\#include "ColorPreview.h"} {private local
+}
 
-decl {\#include "ColorPreview.h"} {} 
+decl {\#include "ColorClipboard.h"} {private local
+}
 
-decl {\#include "ColorClipboard.h"} {} 
+decl {\#include "parameters.h"} {public local
+}
 
-decl {\#include "structs.h"} {public
-} 
+decl {class ChildWindow;} {public local
+}
 
-decl {class ChildWindow;} {public
-} 
-
-decl {\#include "ChildWindow.h"} {} 
+decl {\#include "ChildWindow.h"} {private local
+}
 
 class ColorEditor {open : {public Fl_Group}
 } {
   Function {ColorEditor(int X, int Y, int W, int H, const char *label) : Fl_Group(X,Y,W,H,label)} {open
   } {
-    Fl_Window win {open selected
-      xywh {352 13 416 216}
+    Fl_Window win {open
+      xywh {352 13 415 215} type Double
       class ChildWindow noborder visible
     } {
       Fl_Group {} {
-        label Range
+        label Range open
         tooltip {A color range begins with color 1 and fades smoothly into color 2.} xywh {10 50 100 90} box EMBOSSED_FRAME labelsize 12 align 21
       } {}
       Fl_Group {} {
@@ -124,9 +121,7 @@ class ColorEditor {open : {public Fl_Group}
       }
       Fl_Value_Input blue1 {
         label B
-        callback {
-            CP->blue1(CP->current(), o->value());
-            }
+        callback {CP->blue1(CP->current(), o->value());}
         tooltip Blue xywh {130 110 80 20} labelsize 12 textsize 12
       }
       Fl_Button button_sel1 {
@@ -148,15 +143,13 @@ class ColorEditor {open : {public Fl_Group}
       }
       Fl_Button button_copy1 {
         label Copy
-        callback {
-            clip->Set(red1->value(), green1->value(), blue1->value());
+        callback {clip->Set(red1->value(), green1->value(), blue1->value());
             clip->redraw();}
         tooltip {Copy color 1 to clipboard.} xywh {210 90 40 20} labelsize 12
       }
       Fl_Button button_paste1 {
         label Paste
-        callback {
-            red1->value(clip->GetRed());
+        callback {red1->value(clip->GetRed());
             green1->value(clip->GetGreen());
             blue1->value(clip->GetBlue());
             red1->do_callback();
@@ -203,77 +196,85 @@ class ColorEditor {open : {public Fl_Group}
       }
       Fl_Button button_paste2 {
         label Paste
-        callback {
-            red2->value(clip->GetRed());
+        callback {red2->value(clip->GetRed());
             green2->value(clip->GetGreen()); 
             blue2->value(clip->GetBlue());
             red2->do_callback();
             green2->do_callback();
-            blue2->do_callback();
-            }
+            blue2->do_callback();}
         tooltip {Copy clipboard to color 2.} xywh {360 110 40 20} labelsize 12
       }
       Fl_Choice choice_formula {
-        label {Color Formula}
+        label {Color Formula} open
         tooltip {Click here for example formulas.} xywh {10 190 20 20} down_box DOWN_BOX labelsize 12 align 5 textsize 12
       } {
-        menuitem {} {
+        MenuItem {} {
           label { These are only examples.}
           xywh {50 50 100 20} labelsize 12 labelcolor 72 deactivate
         }
-        menuitem {} {
+        MenuItem {} {
           label { You can also enter your own formula!}
           xywh {50 50 100 20} labelsize 12 labelcolor 72 deactivate
         }
-        menuitem {} {
+        MenuItem {} {
           label { 0}
           callback {ColorFormula->value(o->text());}
           xywh {50 50 100 20} labelsize 12
         }
-        menuitem {} {
-          label { 0.36*x-0.5       \# linear in x-dir}
+        MenuItem {} {
+          label { 0.36*x-0.5    \# linear in x-dir}
           callback {ColorFormula->value(o->text());}
           xywh {50 50 100 20} labelsize 12
         }
-        menuitem {} {
-          label { 0.48*y-0.5      \# linear in y-dir.}
+        MenuItem {} {
+          label { 0.48*y-0.5    \# linear in y-dir.}
           callback {ColorFormula->value(o->text());}
           xywh {50 50 100 20} labelsize 12
         }
-        menuitem {} {
-          label { 0.25*z-0.5      \# linear in z-dir.}
+        MenuItem {} {
+          label { 0.25*z-0.5    \# linear in z-dir.}
           callback {ColorFormula->value(o->text());}
           xywh {50 50 100 20} labelsize 12
         }
-        menuitem {} {
-          label { 0.7*sqrt(x^2+y^2+z^2)     \# spherical}
-          callback {ColorFormula->value(o->text());}
+        MenuItem {} {
+          label { 0.7*sqrt(x^2+y^2+z^2+w^2)     \# spherical}
+          callback {ColorFormula->value(o->text());} selected
           xywh {50 50 100 20} labelsize 12
         }
-        menuitem {} {
+        MenuItem {} {
           label { x+y     \# diagonal striped}
           callback {ColorFormula->value(o->text());}
           xywh {50 50 100 20} labelsize 12
         }
-        menuitem {} {
+        MenuItem {} {
           label { (sin(7*x)+sin(7*y)+sin(7*z)+3)/6  \# big speckles}
           callback {ColorFormula->value(o->text());}
           xywh {50 50 100 20} labelsize 12
         }
-        menuitem {} {
+        MenuItem {} {
           label { y+0.2*sin(15*x)    \# spikes}
           callback {ColorFormula->value(o->text());}
           xywh {50 50 100 20} labelsize 12
         }
-		menuitem {} {
-			label { 0.5 + atan(xb/sqrt(yb*yb+zb*zb+wb*wb))/pi \# unrealness }
-			callback {ColorFormula->value(o->text());}
-	        xywh {50 50 100 20} labelsize 12
+        MenuItem {} {
+          label { 4 * atan(xb/sqrt(yb*yb+zb*zb+wb*wb))/pi \# unrealness }
+          callback {ColorFormula->value(o->text());}
+          xywh {50 50 100 20} labelsize 12
         }
-        menuitem {} {
-          label { sqrt((orbite(5)-x)^2+(orbitj(5)-y)^2+(orbitk(5)-z)^2+(orbitl(5)-orbitl(0))^2)}
+        MenuItem {} {
+          label { sqrt(xb^2 + yb^2 + zb^2 + wb^2)}
+          callback {ColorFormula->value(o->text());}
+          xywh {0 0 36 21}
+        }
+        MenuItem {} {
+          label { sqrt((orbite(5)-orbitj(5))^2+(orbitk(5)-orbitl(5))^2)}
           callback {ColorFormula->value(o->text());}
           xywh {30 30 100 20} labelsize 12
+        }
+        MenuItem {} {
+          label { sqrt((xb-x)^2+(yb-y)^2+(zb-z)^2+(wb-w)^2)}
+          callback {ColorFormula->value(o->text());}
+          xywh {0 0 36 21}
         }
       }
       Fl_Input ColorFormula {
@@ -283,31 +284,25 @@ So you can establish a connection between points
 in space and colors} xywh {30 190 380 20} labeltype NO_LABEL labelsize 12 align 5 textsize 12
       }
     }
-    code {
-        CP->SetInputs(add,del,weight,red1,green1,blue1,red2,green2,blue2,range);
+    code {CP->SetInputs(add,del,weight,red1,green1,blue1,red2,green2,blue2,range);
         end(); // VERY IMPORTANT!
         win->position(X+2, Y+2);
         // DON'T delete win in destructor (or elsewhere) 
         // it's automatically deleted by Fl_Group} {}
   }
-  Function {set(const realpal_cpp& p, const colscheme_cpp& scheme)} {open return_type void
+  Function {set(const RealPalette& p, const ColorScheme& scheme)} {open return_type void
   } {
-    code {
-        CP->SetPal(p);
-        ColorFormula->value(scheme.get()));
-    } {}
+    code {CP->SetPal(p);
+ColorFormula->value(scheme.get());} {}
   }
-  Function {get(realpal_cpp& p, colscheme_cpp& scheme)} {open return_type void
+  Function {get(RealPalette& p, ColorScheme& scheme)} {open return_type void
   } {
-    code {
-        CP->GetPal(p);
-        strcpy(scheme, ColorFormula->value());
-        } {}
+    code {CP->GetPal(p);
+scheme.set(ColorFormula->value());} {}
   }
   Function {deactiv()} {open return_type void
   } {
-    code {
-        add->deactivate();
+    code {add->deactivate();
         del->deactivate();
         weight->deactivate();
         button_sel1->deactivate();
@@ -325,4 +320,4 @@ in space and colors} xywh {30 190 380 20} labeltype NO_LABEL labelsize 12 align 
         choice_formula->deactivate();
         ColorFormula->deactivate();} {}
   }
-} 
+}

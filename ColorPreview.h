@@ -1,14 +1,11 @@
 #ifndef COLORPREVIEW_H
 #define COLORPREVIEW_H
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 #include <vector>
 
 #ifndef NO_NAMESPACE
-using namespace std;
+//using namespace std;
 #endif
 
 #include <FL/Fl_Valuator.H>
@@ -22,8 +19,8 @@ class Fl_Button;
 
 class ColorPreview : public Fl_Valuator
 {
-static const int CP_LEFT = 1;
-static const int CP_RIGHT = 2;
+static constexpr int CP_LEFT = 1;
+static constexpr int CP_RIGHT = 2;
 public:
 	ColorPreview(int x, int y, int w, int h, const char *label);
 	~ColorPreview();
@@ -68,7 +65,7 @@ private:
 	int _state;
 	size_t _idx;
 	unsigned char *_pixmap;
-	vector<int> _pos;
+	std::vector<int> _pos;
 	RealPalette _pal;
 	Fl_Button *_button_add, *_button_del;
 	Fl_Value_Input *_input_weight, *_input_red1, *_input_green1, *_input_blue1;

@@ -22,20 +22,15 @@
 
 #include "CReplacements.h"
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include <new>
-//#include <iostream>
 #include "CReplacements.h"
 #ifndef NO_NAMESPACE
-using namespace std;
+//using namespace std;
 #endif
 
 #include "ImageWid.h"
 
-const unsigned long ImageWid::TYPE = 0x0a0b0c0d;
+constexpr unsigned long ImageWid::TYPE = 0x0a0b0c0d;
 
 ImageWid::ImageWid(int x, int y, int w, int h, const char *label)
 	: Fl_Widget(x, y, w, h, label), _data(0),
@@ -43,24 +38,29 @@ ImageWid::ImageWid(int x, int y, int w, int h, const char *label)
 	_damaged(false),*/
 	_type(TYPE)
 {
-	_data = new (nothrow) unsigned char[w*h*3];
+	_data = new (std::nothrow) unsigned char[w*h*3];
 }
 
 ImageWid::~ImageWid()
 {
 //	is (nothrow) used with new, then the following must be called
 //	to free the memory.
-	operator delete[] (_data, nothrow);
+	operator delete[] (_data, std::nothrow);
 }
 
 bool ImageWid::newImage(int w, int h)
 {
-	operator delete[] (_data, nothrow);
-	_data = new (nothrow) unsigned char[w*h*3];
+	operator delete[] (_data, std::nothrow);
+	_data = new (std::nothrow) unsigned char[w*h*3];
 	assert (_data != 0);
 	memset(_data, 0, w*h*3);
 	Fl_Widget::size(w, h);
 	return true;
+}
+
+void ImageWid::gray(int level) {
+	memset(_data, level, w() * h() * 3);
+	redraw();
 }
 
 void ImageWid::white()
@@ -123,13 +123,6 @@ void ImageWid::get_line(int n, unsigned char *d) const
 {
 	memcpy(d, _data+3*w()*n, 3*w());
 }
-
-/*
-unsigned char *ImageWid::line(int n) const
-{
-	return _data+3*w()*n;
-}
-*/
 
 void ImageWid::draw()
 {

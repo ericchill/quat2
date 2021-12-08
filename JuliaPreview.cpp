@@ -20,10 +20,6 @@
 /* along with this program; if not, write to the Free Software */
 /* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "JuliaPreview.h"
 #include "CReplacements.h"
 #include "quat.h"
@@ -96,7 +92,7 @@ void JuliaPreview::CalcImage3D()
 	bool oldstereo = _imagestereo;
 	_imagestereo = _calcFractal.view().isStereo();
 	old_time = calc_time;
-	CreateImage(errorMsg, &xs, &ys, _calcFractal, 80, ZFlag::NewImage, *this);
+	CreateImage(errorMsg, &xs, &ys, _calcFractal, ZFlag::NewImage, *this);
 	calc_time = old_time;
 	if (errorMsg.str().size() != 0) {
 		_imagestereo = oldstereo;

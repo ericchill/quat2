@@ -48,3 +48,17 @@ inline long threeBytesToLong(unsigned char* bytes) {
         | bytes[1] << 8
         | bytes[2];
 }
+
+
+
+template<typename T>
+inline void fillArray(T* array, const T& value, size_t nElems) {
+    for (size_t i = 0; i < nElems; i++) {
+        array[i] = value;
+    }
+}
+
+template<typename T>
+inline void copyArray(T* dst, const T* src, size_t nElems) {
+    memcpy(dst, src, nElems * sizeof(T));
+}

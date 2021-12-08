@@ -1,46 +1,53 @@
 #pragma once
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
+#include <iostream>
+#include <sstream>
 #include <string>
-//#include <iostream>
-extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
-}
 
-#ifndef NO_NAMESPACE
-using namespace std;
-#endif
 
-class pathname: public string
+class pathname: public std::string
 {
 public:
 	pathname() {}
 	pathname(const char*);
-	pathname(const string&);
+	pathname(const std::string&);
 	void uppercase();
-	string path() const;
-	string file() const;
-	void file(const char*);
-	string filename() const;
-	string ext() const;
+	std::string path() const;
+	std::string filename() const;
+	void filename(const char*);
+	std::string basename() const;
+	std::string ext() const;
 	void ext(const char*);
 	bool exists() const;
-	void seperate(string& path, string& filename, string& ext) const;
-	string next_name(int digits = 3) const;
+	void seperate(std::string& path, std::string& filename, std::string& ext) const;
+	std::string next_name(int digits = 3) const;
 	void auto_name(int digits = 3);
 private:
-	string _convert_slash(const char *) const;
+	std::string _convert_slash(const char *) const;
+};
+
+
+class AssertionException : public std::exception {
+private:
+	const char* _msg;
+public:
+	AssertionException(const char* msg) : _msg(msg) {}
+	virtual const char* what() const noexcept { return _msg; }
 };
 
 inline void i_assert(const char *f, int l, const char *expr) {
-  fprintf(stderr, "Assertion failed: file: %s, line %d, expr: %s\n",
-	  f, l, expr);
-  exit(1);
+	std::stringstream ss;
+	ss << "Assertion failed: file: " << f << ",  line " << l << ", expr: \"" << expr << "\"" << std::endl;
+#ifdef NDEBUG
+	throw AssertionException(ss.str().c_str());
+#else
+	std::cerr << ss.str();
+	*(int*)nullptr = 1;
+#endif
 }
+
 
 #ifdef assert
 #undef assert

@@ -2,7 +2,8 @@
 #ifndef XPMCONST
 #define XPMCONST
 #endif
-static XPMCONST char * const icon_xpm[] = {
+//static XPMCONST char * const icon_xpm[] = {
+constexpr char const * icon_xpm[] = {
 /* width height num_colors chars_per_pixel */
 "   110   110      255            2",
 /* colors */

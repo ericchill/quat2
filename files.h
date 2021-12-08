@@ -20,7 +20,7 @@
 typedef char String_t[256];
 
 
-/* name: name of INI-file
+/* name: name of INI-filename
    altpath: alternative path to search for files
    kwords: array of keyword_struct, which describes keywords and
            their parameters

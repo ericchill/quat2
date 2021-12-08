@@ -23,10 +23,6 @@
 /* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
@@ -83,12 +79,12 @@ int CalculatePNG(
     ZFlag zflag,
     LinePutter& lineDst)
     /* shouldCalculateZBuffer(zflag): */
-    /* pngf1 ... file to read from */
-    /* pngf2 ... file to create ("" if no name available) */
+    /* pngf1 ... filename to read from */
+    /* pngf2 ... filename to create ("" if no name available) */
     /* else: */
     /* pngf1 ... ZBuffer */
-    /* pngf2 ... file to create */
-    /* ini      ... ini file with parameters to replace ZBuffer parameters */
+    /* pngf2 ... filename to create */
+    /* ini      ... ini filename with parameters to replace ZBuffer parameters */
 {
     ViewBasis rbase, srbase, lbase, slbase, cbase;
     FractalPreferences fractal;
@@ -207,7 +203,7 @@ int CalculatePNG(
         if (!ready || ZFlag::ImageFromZBuffer == zflag) {
             i = CalculateFractal(errorMsg, pngfile2, &png2,
                 &png_internal2,
-                zflag, &xstart, &ystart, /* noev */16,
+                zflag, &xstart, &ystart,
                 &rbase, &srbase, &lbase, &slbase, fractal,
                 lineDst);
         }
@@ -501,8 +497,8 @@ int GetParameters(std::ostream& errorMsg, const char* afile) {
 }
 
 int ImgFromZBuf(std::ostream& errorMsg, const char* file, const char* file2, LinePutter& lineDst)
-/* file is a ZBuffer, which gets turned into an image */
-/* called by command-line versions (non-Windows), which are given just a file */
+/* filename is a ZBuffer, which gets turned into an image */
+/* called by command-line versions (non-Windows), which are given just a filename */
 {
     char zpnfile[256], pngfile[256];
     char* s, * s2;

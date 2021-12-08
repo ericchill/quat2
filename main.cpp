@@ -20,12 +20,8 @@
 /* along with this program; if not, write to the Free Software */
 /* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-#define _CRTDBG_MAP_ALLOC
+
 #include <stdlib.h>
-#include <crtdbg.h>
 #include <FL/Fl.H>
 #include <FL/Fl_File_Icon.H>
 
@@ -34,7 +30,7 @@
 
 int main(int argc, char **argv) {
 	if (!initGPU(argc, argv)) {
-		return -1;
+		std::cerr << "No GPU availables, using CPU for generation." << std::endl;
 	}
 	Fl::visual(FL_DOUBLE|FL_INDEX);
 	Fl_File_Icon::load_system_icons();

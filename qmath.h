@@ -20,82 +20,81 @@
 
 template<typename T=double>
 class alignas(16) vec3 {
-    T _v[3];
 public:
     static constexpr size_t nComponents = 3;
 
-    vec3() {
+    CUDA_CALLABLE vec3() {
         memset(_v, 0, sizeof(_v));
     }
-    vec3(const vec3& v) {
+    CUDA_CALLABLE vec3(const vec3& v) {
         memcpy(_v, v._v, sizeof(_v));
     }
-    vec3(T x, T y, T z) {
+    CUDA_CALLABLE vec3(T x, T y, T z) {
         _v[0] = x;
         _v[1] = y;
         _v[2] = z;
     }
-    vec3(T* p) {
-        for (int i = 0; i < 3; i++) {
+    CUDA_CALLABLE vec3(T* p) {
+        for (int i = 0; i < nComponents; i++) {
             _v[i] = p[i];
         }
     }
-    T& operator[](size_t i) {
+    CUDA_CALLABLE T& operator[](size_t i) {
         return _v[i];
     }
-    T operator[](size_t i) const {
+    CUDA_CALLABLE T operator[](size_t i) const {
         return _v[i];
     }
-    vec3 operator+(const vec3& o) const {
+    CUDA_CALLABLE vec3 operator+(const vec3& o) const {
         vec3 res = *this;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < nComponents; i++) {
             res[i] += o[i];
         }
         return res;
     }
-    vec3 operator-() const {
+    CUDA_CALLABLE vec3 operator-() const {
         vec3 res = *this;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < nComponents; i++) {
             res[i] *= -1;
         }
         return res;
     }
-    vec3 operator-(const vec3& o) const {
+    CUDA_CALLABLE vec3 operator-(const vec3& o) const {
         vec3 res = *this;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < nComponents; i++) {
             res[i] -= o[i];
         }
         return res;
     }
-    vec3 operator*(T s) const {
+    CUDA_CALLABLE vec3 operator*(T s) const {
         vec3 res = *this;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < nComponents; i++) {
             res[i] *= s;
         }
         return res;
     }
-    vec3 operator/(T s) const {
+    CUDA_CALLABLE vec3 operator/(T s) const {
         vec3 res = *this;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < nComponents; i++) {
             res[i] /= s;
         }
         return res;
     }
-    vec3 operator+=(const vec3& o) {
+    CUDA_CALLABLE vec3 operator+=(const vec3& o) {
         *this = *this + o;
         return *this;
     }
-    vec3 operator/=(T s) {
+    CUDA_CALLABLE vec3 operator/=(T s) {
         *this = *this / s;
         return *this;
     }
-    double dot(const vec3& o) const {
+    CUDA_CALLABLE double dot(const vec3& o) const {
         return _v[0] * o[0] + _v[1] * o[1] + _v[2] * o[2];
     }
-    double magnitude() const {
+    CUDA_CALLABLE double magnitude() const {
         return sqrt(dot(*this));
     }
-    vec3 normalized() const {
+    CUDA_CALLABLE vec3 normalized() const {
         T m = magnitude();
         if (m != 0) {
             return *this / m;
@@ -103,12 +102,14 @@ public:
             return *this;
         }
     }
-    vec3 cross(const vec3& o) const {
+    CUDA_CALLABLE vec3 cross(const vec3& o) const {
         return vec3(
             _v[1] * o[2] - _v[2] * o[1],
             _v[2] * o[0] - _v[0] * o[2],
             _v[0] * o[1] - _v[1] * o[0]);
     }
+private:
+    T _v[nComponents];
 };
 
 template<typename T=double>
@@ -153,18 +154,19 @@ public:
         _q[3] = d;
     }
     CUDA_CALLABLE Quaternion(const vec3<T>& v) {
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < v.nComponents; i++) {
             _q[i] = v[i];
         }
         _q[3] = 0;
     }
 
     CUDA_CALLABLE Quaternion& operator=(const Quaternion& q) {
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < nComponents; i++) {
             _q[i] = q._q[i];
         }
         return *this;
     }
+
     CUDA_CALLABLE T& operator[](size_t i) {
         return _q[i];
     }
@@ -193,7 +195,7 @@ public:
 
     CUDA_CALLABLE T magnitudeSquared() const {
         T sum = 0;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < nComponents; i++) {
             sum += _q[i] * _q[i];
         }
         return sum;
@@ -205,7 +207,7 @@ public:
 
     CUDA_CALLABLE Quaternion<T> operator+(const Quaternion<T>& b) const {
         Quaternion<T> res = *this;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < nComponents; i++) {
             res[i] += b[i];
         }
         return res;
@@ -219,7 +221,7 @@ public:
 
     CUDA_CALLABLE Quaternion<T> operator-() const {
         Quaternion<T> res = *this;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < nComponents; i++) {
             res *= -1;
         }
         return res;
@@ -227,7 +229,7 @@ public:
 
     CUDA_CALLABLE Quaternion<T> operator-(const Quaternion<T>& b) const {
         Quaternion<T> res = *this;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < nComponents; i++) {
             res[i] -= b[i];
         }
         return res;
@@ -235,7 +237,7 @@ public:
 
     CUDA_CALLABLE Quaternion<T> operator*(T s) const {
         Quaternion<T> res = *this;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < nComponents; i++) {
             res[i] *= s;
         }
         return res;
@@ -270,7 +272,7 @@ public:
     }
     CUDA_CALLABLE Quaternion<T> componentMul(const Quaternion<T>& b) const {
         Quaternion<T> res = *this;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < nComponents; i++) {
             res[i] *= b[i];
         }
         return res;
@@ -278,7 +280,7 @@ public:
 
     CUDA_CALLABLE T sumComponents() const {
         T res = 0;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < nComponents; i++) {
             res += _q[i];
         }
         return res;
@@ -294,7 +296,7 @@ public:
     }
 
     CUDA_CALLABLE bool operator==(const Quaternion& o) const {
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < nComponents; i++) {
             if (_q[i] != o._q[i]) {
                 return false;
             }
@@ -319,7 +321,7 @@ CUDA_CALLABLE Quaternion<T> operator+(T x, const Quaternion<T>& q) {
 
 template<typename T>
 CUDA_CALLABLE Quaternion<T> operator-(T x, const Quaternion<T>& q) {
-    return Quat(x, 0, 0, 0) - q;
+    return Quaternion<T>(x, 0, 0, 0) - q;
 }
 
 template<typename T>
@@ -385,8 +387,8 @@ std::ostream& operator<<(std::ostream& oo, const Quaternion<double>& q);
 #ifndef __NVCC__
 inline void intrinsicSquared(double* in, double* out) {
     alignas(32) double real2[4];
-    register __m256d q = _mm256_load_pd(in);
-    register __m256d re2 = _mm256_mul_pd(q, q);
+    __m256d q = _mm256_load_pd(in);
+    __m256d re2 = _mm256_mul_pd(q, q);
     _mm256_store_pd(real2, re2);
     __m128d q0scalar = _mm_load_pd(in);
     __m256d q0 = _mm256_broadcastsd_pd(q0scalar);
@@ -398,7 +400,7 @@ inline void intrinsicSquared(double* in, double* out) {
 #endif
 
 template<>
-Quaternion<double> Quaternion<double>::squared() const {
+inline Quaternion<double> Quaternion<double>::squared() const {
 #ifndef __NVCC__
     double result[4];
     intrinsicSquared((double*)_q, result);

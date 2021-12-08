@@ -78,6 +78,7 @@ private:
             } else {
                 delete _ptr;
             }
+            _ptr = nullptr;
         }
     }
 };
@@ -107,34 +108,35 @@ public:
         return _mem;
     }
     T& operator[](size_t i) {
+#ifndef NDEBUG
         if (i >= _nElems) {
             throw std::out_of_range("Index out of range for LexicallyScopedRangeCheckedStorage::operator[]");
         }
+#endif
         return _mem[i];
     }
     T& operator[](size_t i) const {
+#ifndef NDEBUG
         if (i >= _nElems) {
             throw std::out_of_range("Index out of range for LexicallyScopedRangeCheckedStorage::operator[] const");
         }
+#endif
         return _mem[i];
     }
     void setElems(size_t offset, const T* ptr, size_t nToCopy) {
+#ifndef NDEBUG
         if (offset + nToCopy >= _nElems) {
             throw std::out_of_range("Index out of range for LexicallyScopedRangeCheckedStorage::setElems");
         }
+#endif
         memcpy(&_mem[offset], ptr, nToCopy * sizeof(T));
     }
-    void getElems(T* ptr, size_t offset, size_t bToCopy) const {
+    void getElems(T* ptr, size_t offset, size_t nToCopy) const {
+#ifndef NDEBUG
         if (offset + nToCopy >= _nElems) {
             throw std::out_of_range("Index out of range for LexicallyScopedRangeCheckedStorage::getElems");
         }
+#endif
         memcpy(ptr, &_mem[offset], nToCopy * sizeof(T));
     }
 };
-
-template<typename T>
-inline void fillArray(T* array, size_t nElems, const T& value) {
-    for (size_t i = 0; i < nElems; i++) {
-        array[i] = value;
-    }
-}

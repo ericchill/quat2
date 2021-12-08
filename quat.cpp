@@ -23,18 +23,15 @@
 /* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 #include <algorithm>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #define _USE_MATH_DEFINES // To get M_PI & c.
-#include <math.h>  /* fmod */
-#include <time.h> /* time */
-#include <ctype.h> /* tolower */
+#include <math.h>
+#include <time.h>
+#include <ctype.h>
 #include "common.h"
 #include "quat.h"
 #include "iter.h"
@@ -268,18 +265,17 @@ int CalculateFractal(
     ZFlag zflag,
     int* xstart,
     int* ystart,
-    int pixelsPerCheck,
     ViewBasis* rbase,
     ViewBasis* srbase,
     ViewBasis* lbase,
     ViewBasis* slbase,
     FractalPreferences& fractal,
     LinePutter& lineDst)
-    /* pngfile: string of filename, without path (only for title bar) */
-    /* png: _opened_ png file */
-    /* png file returns _closed_ */
+    /* pngfile: string of basename, without path (only for title bar) */
+    /* png: _opened_ png filename */
+    /* png filename returns _closed_ */
     /*      and initialized (png_info, png_internal) */
-    /* if png==NULL, no file is written */
+    /* if png==NULL, no filename is written */
     /* also closes graphics, resets keyboard mode */
     /* wants external format for light-source and bailout */
     /* zflag: decides what to calculate,
@@ -307,10 +303,6 @@ int CalculateFractal(
     calc_struct cl(frac, view, fractal.cuts(), *lbase, *slbase, zflag);
     char MSG[300];
 
-#define USE_GPU
-#ifdef USE_GPU
-    pixelsPerCheck = view._xres;
-#endif
 
     long xres_st = view._xres;
     long xres_aa = view._xres * view._antialiasing;
@@ -320,13 +312,13 @@ int CalculateFractal(
         xres_st_aa *= 2;
     }
 
-    //if (nullptr != GlobalOrbit) {
-    //    delete[] GlobalOrbit;
-    //}
-    //GlobalOrbit = new Quat[frac._maxiter + 2]();
-    /* "+2", because orbit[0] is special flag for orbite,iy,k,l */
+    int pixelsPerCheck = haveGPU ? xres_aa : 16;
+
     size_t lBufSize;
     allocBufs(view, zflag, cBuf, bBuf, lBufR, lBufL, line, line2, line3, lBufSize);
+
+    LexicallyScopedPtr<GPURowCalculator> rightRowCalculator = new GPURowCalculator(cr, lBufSize);
+    LexicallyScopedPtr<GPURowCalculator> leftRowCalculator = new GPURowCalculator(cl, lBufSize);
 
     time_t my_time = time(NULL);
 
@@ -344,19 +336,11 @@ int CalculateFractal(
         cr._xp = srbase->_O + iy * srbase->_y;
         cr._xp[3] = frac._lTerm;
         cr._xs[3] = frac._lTerm;
+        memcpy(&lBufR[0], &lBufR[view._antialiasing * xres_aa], xres_aa * sizeof(lBufR[0]));
         if (view.isStereo()) {
             cl._xp = slbase->_O + iy * slbase->_y;
             cl._xp[3] = frac._lTerm;
             cl._xs[3] = frac._lTerm;
-        }
-
-        /* Initialize LBufs from ZBuffer */
-        //fillArray<double>(&lBufR[0], view._zres, xres_aa);
-        //if (view.isStereo()) {
-        //    fillArray<double>(&lBufL[0], view._zres, xres_aa)
-        //}
-        memcpy(&lBufR[0], &lBufR[view._antialiasing * xres_aa], xres_aa * sizeof(lBufR[0]));
-        if (view.isStereo()) {
             memcpy(&lBufL[0], &lBufL[view._antialiasing * xres_aa], xres_aa * sizeof(lBufL[0]));
         }
 
@@ -371,9 +355,9 @@ int CalculateFractal(
                         }
                     }
                 } else {
-                    fillArray<double>(lBufR, xres_aa, static_cast<double>(view._zres));
+                    fillArray<double>(lBufR, static_cast<double>(view._zres), xres_aa);
                     if (view.isStereo()) {
-                        fillArray<double>(lBufL, xres_aa, static_cast<double>(view._zres));
+                        fillArray<double>(lBufL, static_cast<double>(view._zres), xres_aa);
                     }
                 }
             }
@@ -381,14 +365,14 @@ int CalculateFractal(
         for (int ii = *xstart; ii < view._xres; ii += pixelsPerCheck) {
             long imax = ii + pixelsPerCheck - 1;
             imax = std::min<long>(imax, view._xres - 1);
-            cr.calcline2(ii, imax, iy, lBufR, bBuf, cBuf, zflag);  // right eye or monocular
+            cr.calcline(*rightRowCalculator, ii, imax, iy, lBufR, bBuf, cBuf, zflag);  // right eye or monocular
 
             /* image to calculate */
             if (shouldCalculateImage(zflag) && !firstLine) {
                 fractal.realPalette().pixelValue(ii, imax, 255, 255, 255,  &line[1], cBuf, bBuf);
             }
             if (view.isStereo()) {
-                cl.calcline(ii, imax, iy, lBufL, &bBuf[view._xres], &cBuf[view._xres], zflag);   /* left eye image */
+                cl.calcline(*leftRowCalculator, ii, imax, iy, lBufL, &bBuf[view._xres], &cBuf[view._xres], zflag);   /* left eye image */
                /* image to calculate */
                 if (shouldCalculateImage(zflag) && !firstLine) {
                     fractal.realPalette().pixelValue(
@@ -505,7 +489,6 @@ int CreateImage(
     std::ostream& errorMsg,
     int* xstart, int* ystart, 
     FractalPreferences& fractal,
-    int pixelsPerCheck,
     ZFlag zflag,
     LinePutter& lineDst)
     /* Creates/Continues image from given parameters.
@@ -542,7 +525,7 @@ int CreateImage(
         return -1;
     }
 
-    if (ystart == 0 && xstart == 0) {
+    if (0 == ystart && 0 == xstart) {
         calc_time = 0;
     }
     return CalculateFractal(
@@ -550,13 +533,12 @@ int CreateImage(
         NULL, NULL, NULL,
         zflag,
         xstart, ystart,
-        pixelsPerCheck,
         &rbase, &srbase, &lbase, &slbase, 
         fractal,
         lineDst);
 }
 
-int CreateZBuf(std::ostream& errorMsg, int* xstart, int* ystart, FractalPreferences& fractal, int pixelsPerCheck, LinePutter& lineDst)
+int CreateZBuf(std::ostream& errorMsg, int* xstart, int* ystart, FractalPreferences& fractal, LinePutter& lineDst)
     /* Creates/Continues ZBuffer from given parameters. Wants external format of frac & view */
 {
     ViewBasis rbase, srbase, lbase, slbase, cbase;
@@ -595,10 +577,8 @@ int CreateZBuf(std::ostream& errorMsg, int* xstart, int* ystart, FractalPreferen
     }
 
     i = CalculateFractal(errorMsg, NULL, NULL, NULL,
-        ZFlag::NewZBuffer, xstart, ystart, pixelsPerCheck, &rbase, &srbase, &lbase,
+        ZFlag::NewZBuffer, xstart, ystart, &rbase, &srbase, &lbase,
         &slbase, fractal, lineDst);
 
     return i;
 }
-
-

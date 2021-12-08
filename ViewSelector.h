@@ -11,9 +11,9 @@ class ViewSelector : public Fl_Double_Window
 public:
 	ViewSelector(int x, int y, int w, int h, const char *label);
 	~ViewSelector();
-	void SetInputs(Fl_Value_Input *vx, Fl_Value_Input *vy)
-	{
-		_input_vx = vx; _input_vy = vy;
+	void SetInputs(Fl_Value_Input *vx, Fl_Value_Input *vy) {
+		_input_vx = vx;
+		_input_vy = vy;
 	}
 	void Init(int s_x, int s_y, int s_dx, int s_dy);
 	void viewpointre(double a) { _v._s[0] = a; redraw(); }

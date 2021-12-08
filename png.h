@@ -31,7 +31,7 @@ private:
     /* values of chunk read last */
     size_t _length;
     unsigned char* _mem_ptr;
-    /* position in file:
+    /* position in filename:
        0: between chunks (between crc of old and length of new)
        1: before chunk data (length + header already read)
        2: after chunk data (crc not yet read)
@@ -67,7 +67,7 @@ public:
         _info.height = h;
     }
 
-    /* Reads length and chunk type of next chunk in file */
+    /* Reads length and chunk type of next chunk in filename */
     /* and sets fields length and chunk_type */
     int getNextChunk();
     /* Reads data of a chunk. It is required that the length and header */
@@ -77,8 +77,8 @@ public:
     /* is used to call the function for decompressing of zlib */
     /* returns return code of zlib and 10 if Z_STREAM_END */
     int do_inflate();
-    /* reads and decompresses a single line (+ filter uint8_t) from file into Buf */
-    /* -1 if file position isn't at the beginning of an IDAT chunk */
+    /* reads and decompresses a single line (+ filter uint8_t) from filename into Buf */
+    /* -1 if filename position isn't at the beginning of an IDAT chunk */
     /* -2 CRC error */
     /* -3 if the next chunk needed to reconstruct line isn't IDAT */
     int readPNGLine(unsigned char* Buf);
@@ -114,11 +114,6 @@ private:
 
     int do_deflate();
 };
-
-
-//int InitPNG(FILE *png, png_info_struct *info, PNGFile *internal);
-   /* Has to be called after opening and before reading the PNG file      */
-   /* returns -1 if png signature check failed or first chunk is not IHDR */
 
 
 void ulong2bytes(uint32_t l, uint8_t* Buf);

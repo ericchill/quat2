@@ -1,13 +1,10 @@
 #pragma once
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 #include <sstream>
 
 #ifndef NO_NAMESPACE
-using namespace std;
+//using namespace std;
 #endif
 
 #include "common.h"
@@ -27,6 +24,9 @@ class Fl_Help_Dialog;
 
 class MainWindow : public LinePutter {
 public:
+
+    static MainWindow* mainWindowPtr;
+
     MainWindow(int argc, char** argv, int x = 308, int y = 296, const char* label = PROGNAME);
     ~MainWindow();
     bool shown() const;
@@ -45,7 +45,7 @@ public:
     int putLine(long x1, long x2, long xres, int y, unsigned char* Buf, bool useZBuf);
 
     void Image_Open();
-    int Image_Close();
+    void Image_Close();
     void Image_Save();
     void Image_SaveAs();
     void Image_AdjustWindow();
@@ -63,7 +63,7 @@ public:
         bool zbuf);
     void Parameters_SaveAs(const FractalPreferences&);
     void ZBuffer_Open();
-    int ZBuffer_Close();
+    void ZBuffer_Close();
     void ZBuffer_SaveAs();
     void Help_Manual();
     FractalPreferences _fractal;
@@ -100,7 +100,7 @@ private:
     bool ImgInMem, ZBufInMem, ImgChanged, ZBufChanged,
         ImgReady, ZBufReady, InCalc;
     Fl_Window* MainWin;
-    ostringstream status_text;
+    std::ostringstream status_text;
     Fl_Box* status;
     ScrollWid* scroll;
     Fl_Widget* pix;
@@ -108,7 +108,7 @@ private:
     Fl_Help_Dialog* help;
     unsigned char* ZBuf;
     pathname act_file;
-    string ini_path, png_path;
+    std::string ini_path, png_path;
     char* _status_text_char;
     //	const unsigned long _type;
 };

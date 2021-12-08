@@ -26,7 +26,8 @@ ViewBasis tag_invoke(const json::value_to_tag< ViewBasis >&, json::value const& 
 void FractalSpec::reset() {
     _c = 0;
     _bailout = 16;
-    _maxiter = 12;
+    _maxiter = 30;
+    _maxOrbit = 100;
     _lTerm = 0;
     _formula = 0;
     for (int i = 0; i < numPowers; i++) {

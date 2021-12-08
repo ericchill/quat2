@@ -20,16 +20,12 @@
 /* along with this program; if not, write to the Free Software */
 /* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include <cstdlib> 	// atoi
 #include <cstring>	// memset
 #include <iostream>
 
 #ifndef NO_NAMESPACE
-using namespace std;
+//using namespace std;
 #endif
 
 #include <FL/fl_draw.H>
@@ -291,25 +287,26 @@ int MandelPreview::CalcMPixel(int x, int y)
 {
 	int (*iter) (struct iter_struct*);
 	static struct iter_struct is;
-	LexicallyScopedPtr<Quat> orbit = new Quat[_Maxiter+1];
+	LexicallyScopedPtr<Quat> orbit = new Quat[_Maxiter+2];
 
 	is.xstart = 0;
 
 	switch (_Formula) {
 	  case 0: 
-		  iter = iterate_0;
+		  iter = iterate_0_no_orbit;
 		break;
 	  case 1:
-		  iter = iterate_1;
+		  iter = iterate_1_no_orbit;
 		  break;
 	  case 2: 
-		  iter = iterate_2;
+		  iter = iterate_2_no_orbit;
 		  is.xstart = 0.367879441;
 		  break;
 	  case 3: 
-		  iter = iterate_3;
+		  iter = iterate_3_no_orbit;
 		  break;
-	  case 4: iter = iterate_4;
+	  case 4: 
+		  iter = iterate_4_no_orbit;
 		  is.p[0] = _p[0];
 		  break;
 	  case 5:
@@ -324,6 +321,7 @@ int MandelPreview::CalcMPixel(int x, int y)
 	is.c[3] = _ck;
 	is.bailout = _BailoutSQR;
 	is.maxiter = _Maxiter;
+	is.maxOrbit = _Maxiter;
 	is.exactiter = 0;
 	is.orbit = &orbit[0];
 	

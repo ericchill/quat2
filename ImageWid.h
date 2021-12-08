@@ -12,6 +12,7 @@ public:
 	virtual ~ImageWid();
 	bool newImage(int w, int h);
 	bool valid() const { return _data != 0; }
+	void gray(int level);
 	void white();
 	void fill(Fl_Color& col);
 	void set_pixel(int x, int y, unsigned char r, unsigned char g, unsigned char b);

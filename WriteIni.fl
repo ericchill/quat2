@@ -1,10 +1,7 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0100 
-header_name {.h} 
-code_name {.cxx} 
-gridx 5 
-gridy 5 
-snap 3
+version 1.0304
+header_name {.h}
+code_name {.cpp}
 decl {// Quat - A 3D fractal generation program
 // Copyright (C) 1997-2000 Dirk Meyer
 // (email: dirk.meyer@studserv.uni-stuttgart.de)
@@ -25,20 +22,17 @@ decl {// Quat - A 3D fractal generation program
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.} {} 
+// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.} {private local
+}
 
-declblock {\#ifdef HAVE_CONFIG_H} {after {\#endif}
-} {
-  decl {\#include <config.h>} {}
-} 
+decl {bool WriteINI_state = false;} {private local
+}
 
-decl {bool WriteINI_state = false;} {} 
-
-Function {WriteINI(int& mode)} {return_type bool
+Function {WriteINI(int& mode)} {open return_type bool
 } {
   Fl_Window win {
     label {Write Parameters to INI file}
-    xywh {367 321 210 187}
+    xywh {367 321 210 185} type Double
     code0 {\#include "common.h" // PS_ -Defines} modal visible
   } {
     Fl_Check_Button OBJ {
@@ -54,7 +48,7 @@ Function {WriteINI(int& mode)} {return_type bool
       xywh {55 80 90 25} down_box DOWN_BOX value 1 selection_color 2 labelsize 12
     }
     Fl_Check_Button OTHER {
-      label {Other Data} selected
+      label {Other Data}
       xywh {55 100 90 25} down_box DOWN_BOX value 1 selection_color 2 labelsize 12
     }
     Fl_Box {} {
@@ -85,5 +79,6 @@ if (OTHER->value()) mode |= PS_OTHER;
 
 delete win;
 
-return WriteINI_state;} {}
-} 
+return WriteINI_state;} {selected
+  }
+}
