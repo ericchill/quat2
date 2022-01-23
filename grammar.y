@@ -1,107 +1,139 @@
-%include {
-#include "lexer.h"
+%require "3.2"
+%language "c++"
+%output "grammar.cpp"
+%header "grammar.h"
+%define api.token.raw
+%define api.token.constructor
+%define api.value.type variant
+%define api.location.file none
+%define parse.assert
+%locations
+%define parse.trace
+%define parse.error detailed
+%define parse.lac full
+
+%{
+#include "ExprParse.h"
 #include "ExprEval.h"
+//#define yylex ExprCompiler::currentCompiler->yylex
+%}
+
+%code requires {
+class Expression;
+class ExprCompiler;
 }
 
-%name exprParser
+// The parsing context.
+%param { ExprCompiler& drv }
 
-%token_prefix TOKEN_
+%token <double> FLOAT
+%token <std::string> IDENTIFIER
+%token <std::string> QUESTION
+%token <std::string> COMMA
+%token <std::string> COLON
+%token <std::string> GREATER
+%token <std::string> GREATER_EQUAL
+%token <std::string> LESS
+%token <std::string> LESS_EQUAL
+%token <std::string> EQUAL_TO
+%token <std::string> NOT_EQUAL_TO
+%token <std::string> PLUS
+%token <std::string> MINUS
+%token <std::string> TIMES
+%token <std::string> DIVIDE
+%token <std::string> MODULO
+%token <std::string> POWER
+%token <std::string> OPEN_PAREN
+%token <std::string> CLOSE_PAREN
+%token <std::string> OPEN_BRACE
+%token <std::string> CLOSE_BRACE
+%token <std::string> OPEN_BRACKET
+%token <std::string> CLOSE_BRACKET
 
-%token_type {LexerToken}
+%left COMMA;
+%left QUESTION;
+%right COLON;
+%right GREATER GREATER_EQUAL LESS LESS_EQUAL EQUAL_TO NOT_EQUAL_TO;
+%left PLUS MINUS;
+%left TIMES DIVIDE MODULO;
+%right POWER;
 
-%type expr {Expression}
-%type function {Expression}
-%type IDENTIFIER {VariableExpr}
-%type NUMBER {ConstantExpr}
-//%type lambda {Expression}
-//%type arglist {Expression}
-//%type varlist {Expression}
+%nterm <Expression*> expr.result;
+%nterm <Expression*> expr;
+%nterm <Expression*> function;
+%nterm <Expression*> value;
 
-%left COMMA.
-%left QUESTION.
-%right COLON.
-%right GREATER LESS EQUALS NOT_EQUALS.
-%left PLUS MINUS.
-%left TIMES DIVIDE MODULO.
-%right POWER.
+%%
+%start expr.result;
 
+expr.result:
+	expr
+		{ drv.result = $1; }
 
-program ::= expr.
+expr:
+		expr QUESTION expr COLON expr 
+			{ $$ = new TernaryOpExpr($1, $3, $5); }
+	|	expr GREATER expr
+			{ $$ = new BinaryOp<std::greater<double>>($1, $3); }
+	|	expr GREATER_EQUAL expr
+			{ $$ = new BinaryOp<std::greater_equal<double>>($1, $3); }
+	|	expr LESS expr
+			{ $$ = new BinaryOp<std::less<double>>($1, $3); }
+	|	expr LESS_EQUAL expr
+			{ $$ = new BinaryOp<std::less_equal<double>>($1, $3); }
+	|	expr EQUAL_TO expr
+			{ $$ = new BinaryOp<std::equal_to<double>>($1, $3); }
+	|	expr NOT_EQUAL_TO expr
+			{ $$ = new BinaryOp<std::not_equal_to<double>>($1, $3); }
+	|	expr PLUS expr	
+			{ $$ = new BinaryOp<std::plus<double>>($1, $3); }
+	|	expr MINUS expr
+			{ $$ = new BinaryOp<std::minus<double>>($1, $3); }
+	|	expr TIMES expr
+			{ $$ = new BinaryOp<std::multiplies<double>>($1, $3); }
+	|	expr DIVIDE expr
+			{ $$ = new BinaryOp<std::divides<double>>($1, $3); }
+	|	expr MODULO expr
+			{ $$ = new ModuloOp($1, $3); }
+	|	expr POWER expr
+			{ $$ = new RaisePowerOp($1, $3); }
+	|	function
+			{ $$ = $1; }
+	|	value
+			{ $$ = $1; }
 
-expr(res) ::= expr(A) QUESTION expr(B) COLON expr(C).
-	{ res = TernaryOpExpr(A, B, C); }
+function :
+		IDENTIFIER OPEN_PAREN expr CLOSE_PAREN
+			{ $$ = new UnaryFunction($1, $3); }
+	|	IDENTIFIER OPEN_PAREN expr COMMA expr CLOSE_PAREN
+			{ $$ = new BinaryFunction($1, $3, $5); }
+	|	IDENTIFIER OPEN_PAREN CLOSE_PAREN
+			{ $$ = new NilaryFunction($1); }
 
-expr(res) ::= expr(A) GREATER expr(B).
-	{ res = BinaryOp<std::greater<double>>(A, B); }
+//	|	lambda OPEN_PAREN exprlist CLOSE_PAREN
+//			{ $$ = new LambdaInvokeExpr($1, $2); }
+//	|	OPEN_BRACE OPEN_PAREN varlist CLOSE_PAREN COLON expr CLOSE_BRACE
+//			{ $$ = new LambdaExpr($2, $1); }
 
-expr(res) ::= expr(A) LESS expr(B).
-	{ res = BinaryOp<std::less<double>>(A, B); }
+value :
+		IDENTIFIER
+			{ $$ = new VariableExpr($1); }
+	|	FLOAT
+			{ $$ = new ConstantExpr($1); }
+	|	OPEN_PAREN expr CLOSE_PAREN
+			{ $$ = $2; }
+	|	MINUS expr
+			{ $$ = new UnaryOp<std::negate<double>>($2); }
 
-expr(res) ::= expr(A) EQUALS expr(B).
-	{ res = BinaryOp<std::equal_to<double>>(A, B); }
+//exprlist($$) :
+//	expr
+//		{ $$ = $1; }
 
-expr(res) ::= expr(A) NOT_EQUALS expr(B).
-	{ res = BinaryOp<std::not_equal_to<double>>(A, B); }
+//exprlist($$) ::= exprlist COMMA expr
+//		{ $$ = new ExprList($1, $2); }
 
-expr(res) ::= expr(A) PLUS expr(B).	
-	{ res = BinaryOp<std::plus<double>>(A, B); }
+//varlist($$) ::= identifier
+//		{ $$ = new VarList; }
 
-expr(res) ::= expr(A) MINUS expr(B).
-	{ res = BinaryOp<std::minus<double>>(A, B); }
-
-expr(res) ::= expr(A) TIMES expr(B).
-	{ res = BinaryOp<std::multiplies<double>>(A, B); }
-
-expr(res) ::= expr(A) DIVIDE expr(B).
-	{ res = BinaryOp<std::divides<double>>(A, B); }
-
-expr(res) ::= expr(A) MODULO expr(B).
-	{ res = BinaryOp<std::modulus<double>>(A, B) ;}
-
-expr(res) ::= expr(A) POWER expr(B).
-	{ res = RaisePowerExpr(A, B); }
-
-expr(res) ::= function(A).
-	{ res = A; }
-
-expr(res) ::= value(A).
-	{ res = A; }
-
-function(res) ::= IDENTIFIER(A) OPEN_PAREN expr(B) CLOSE_PAREN.
-	{ res = UnaryFunction(A, B); }
-
-function(res) ::= IDENTIFIER(A) OPEN_PAREN expr(B) COMMA expr(C) CLOSE_PAREN.
-	{ res = BinaryFunction(A, B, C); }
-
-function(res) ::= IDENTIFIER(A) OPEN_PAREN CLOSE_PAREN.
-	{ res = NilaryFunction(A); }
-
-//function(res) ::= lambda(A) OPEN_PAREN exprlist(B) CLOSE_PAREN.
-//		{ res = LambdaInvokeExpr(A, B); }
-
-//lambda(res) ::= OPEN_BRACE OPEN_PAREN varlist(A) CLOSE_PAREN COLON expr(B) CLOSE_BRACE.
-//		{ res = LambdaExpr(B, A); }
-
-value(res) ::= IDENTIFIER(A).
-		{ res = VariableExpr(A.name); }
-
-value(res) ::= NUMBER(A).
-		{ res = ConstantExpr(A.dValue); }
-
-value(res) ::= OPEN_PAREN expr(A) CLOSE_PAREN.
-		{ res = A; }
-
-value(res) ::= MINUS expr(A).
-		{ res = UnaryOp<std::negate<double>>(A); }
-
-//exprlist(res) ::= expr(A).
-//		{ res = A; }
-
-//exprlist(res) ::= exprlist(A) COMMA expr(B).
-//		{ res = ExprList(A, B); }
-
-//varlist(res) ::= IDENTIFIER(A).
-//		{ res = VarList(A); }
-
-//varlist(res) ::= varlist(A) COMMA IDENTIFIER(B).
-//		{ res = VarList(A, B); }
+//varlist($$) ::= varlist COMMA identifier
+//		{ $$ = new VarList($1, $2); }

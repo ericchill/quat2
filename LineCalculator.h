@@ -1,14 +1,13 @@
 #pragma once
 
 #include "parameters.h"
+#include "ExprEval.h"
+#include "memory.h"
 
 struct iter_struct;
 class GPURowCalculator;
-
-extern Quat* GlobalOrbit;
-#define MAXITER (GlobalOrbit[0][0])
-#define LASTITER (GlobalOrbit[0][1])
-#define LASTORBIT (GlobalOrbit[0][2])
+class Expression;
+class EvalContext;
 
 class LineCalculator {
 public:
@@ -16,6 +15,7 @@ public:
         const FractalSpec& fractal,
         const FractalView& view,
         const CutSpec& _cuts,
+        Expression* colorExpr,
         ViewBasis& base,
         ViewBasis& sbase,
         ZFlag zflag);
@@ -35,7 +35,9 @@ public:
               2..calc image from ZBuffer */
               /* if zflag==2, LBuf must be initialized with the depths from the ZBuffer */
     int calcline(GPURowCalculator& rowCalc, int y,
-        float* LBuf, float* BBuf, float* CBuf,
+        float* lBuf,
+        float* bBuf,
+        float* cBuf,
         ZFlag zflag);
 
     float colorizepoint();
@@ -44,20 +46,19 @@ public:
     /* x: x coordinate of pixel on screen */
     /* y: the number of the "scan"line to calculate */
     /* LBuf: depth information for the pixel */
-    /* fields in LineCalculator: */
-    /* base: normalized base */
-    /* sbase: specially normalized base */
-    /* f, v: structures with the fractal and view information */
     /* returns brightness value */
-    float brightpoint(int x, int y, float* LBuf);
+    float brightpoint(int x, int y, float* lBuf);
 
     const FractalSpec& fractal() const { return _f; }
     const FractalView& view() const { return _v; }
     const CutSpec& cuts() const { return _cuts;  }
     const ViewBasis& sbase() const { return _sbase; }
+    const ViewBasis& aabase() const { return _aabase; }
 
     Quat _xp;
-    Quat _xs;
+    Quat _initialXStart;
+
+    static CUDA_CALLABLE int orbitSpecial() { return 5; }
 
 private:
     Quat _xq, _xcalc;
@@ -68,20 +69,27 @@ private:
     CutSpec _cuts;
 
     size_t _lBufSize;
-    Quat* _xStarts;
     Quat* _manyOrbits;
     float* _distances;
     float* _lastIters;
     float* _lBuf;
+    float* _bBuf;
 
-private:
+    Expression* _colorExpr;
+    EvalContext _colorContext;
+
+    static EvalSymbol _xSymbol, _ySymbol, _zSymbol, _wSymbol;
+    static EvalSymbol _xbSymbol, _ybSymbol, _zbSymbol, _wbSymbol;
+    static EvalSymbol _maxIterSymbol, _lastIterSymbol;
+    static EvalSymbol _lastOrbitSymbol, _maxOrbitSymbol;
+    static EvalSymbol _isInteriorSymbol;
+
     int (*_iterate_no_orbit) (iter_struct*);
     int (*_iterate) (iter_struct*);
-    int (*_iternorm) (iter_struct* is, Vec3& norm);
 };
 
 
-inline int aaLBufIndex(int x, int xaa, int yaa, int xres, int aa) {
+inline CUDA_CALLABLE int aaLBufIndex(int x, int xaa, int yaa, int xres, int aa) {
     return ((yaa + 1) * xres + x) * aa + xaa;
 }
 

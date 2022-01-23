@@ -1,7 +1,9 @@
 #ifndef COLORCLIPBOARD_H
 #define COLORCLIPBOARD_H
 
+#pragma warning(push, 0)
 #include <FL/Fl_Widget.H>
+#pragma warning(pop)
 
 class ColorClipboard : public Fl_Widget
 {

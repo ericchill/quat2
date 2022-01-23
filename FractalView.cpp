@@ -1,4 +1,5 @@
 #include "FractalView.h"
+#include "parameters.h"
 
 
 ViewBasis::ViewBasis(json::value const& jv) {
@@ -20,7 +21,6 @@ json::value ViewBasis::toJSON() const {
 ViewBasis tag_invoke(const json::value_to_tag< ViewBasis >&, json::value const& jv) {
     return ViewBasis(jv);
 }
-
 
 
 FractalView::FractalView(const FractalView& f) {
@@ -116,31 +116,18 @@ int FractalView::DoCalcbase(
     bool use_proj_up,
     Vec3 proj_up) {
 
-    double absolute = 0.0, lambda = 0.0;
-    Vec3 ss, tmp;
-
-    if (_xres == 0) {
+    if (0 == _xres || 0 == _yres || 0 == _zres) {
         return -1;
     }
     double leny = _LXR * _yres / _xres;
 
-    /* Norm of z */
-    absolute = _s.magnitude();
-    if (absolute == 0) {
-        return -1;
-    }
-    base->_z = -_s / absolute;
+    base->_z = -_s.normalized();
 
-    /* Norm of up */
-    absolute = _up.magnitude();
-    if (absolute == 0) {
-        return -1;
-    }
-    _up /= absolute;
+    _up = _up.normalized();
 
     /* check whether up is linearly dependent on z */
     /* cross product != 0 */
-    if (_up.cross(base->_z).magnitude() == 0) {
+    if (_up.cross(base->_z).magnitudeSquared() == 0) {
         return -1;
     }
 
@@ -153,21 +140,14 @@ int FractalView::DoCalcbase(
             base->_y = -_up;
         } else {
             /* calculate projection of up onto pi */
-            tmp = _s - _up;
-            lambda = base->_z.dot(tmp);
-            ss = lambda * base->_z + _up;
+            double lambda = base->_z.dot(_s - _up);
+            Vec3 ss = lambda * base->_z + _up;
 
-            /* tmp-Vec3: tmp = s-ss */
-            tmp = _s - ss;
-            absolute = tmp.magnitude();
-            assert(absolute != 0.0);
-
-            /* with this: y-vector */
-            base->_y = tmp / absolute;
+            base->_y = (_s - ss).normalized();
         }
     }
 
-    /* calculate x-vector (through cross product) */
+    /* x orthogonal to y and z */
     base->_x = base->_y.cross(base->_z);
 
     /* calculate origin */
@@ -178,11 +158,8 @@ int FractalView::DoCalcbase(
     /* ready with base, now: calculate a specially pseudo-normed base */
     /* where the length of the base vectors represent 1 pixel */
 
-    if (sbase == NULL) {
+    if (nullptr == sbase) {
         return 0;
-    }
-    if (_yres == 0) {
-        return -1;
     }
     _LXR *= 2;
     leny *= 2;
@@ -190,14 +167,8 @@ int FractalView::DoCalcbase(
     sbase->_x = _LXR * base->_x / _xres;
     sbase->_y = leny * base->_y / _yres;
 
-    if (_zres == 0) {
-        return -1;
-    }
-
     /* how deep into scene */
-    absolute = fabs(base->_z.dot(_s));
-    absolute *= 2;
-    sbase->_z = absolute * base->_z / _zres;
+    sbase->_z = 2 * fabs(base->_z.dot(_s)) * base->_z / _zres;
 
     /* Only thing that has to be done: shift the plane */
     return 0;
@@ -236,7 +207,7 @@ int FractalView::calcbase(ViewBasis* base, ViewBasis* sbase, WhichEye viewType) 
 
     /* Shift plane in direction of common plane */
     base->_O += _Mov[0] * commonbase._x + _Mov[1] * commonbase._y;
-    if (sbase != NULL) {
+    if (sbase != nullptr) {
         sbase->_O = base->_O;
     }
     return 0;
@@ -245,10 +216,10 @@ int FractalView::calcbase(ViewBasis* base, ViewBasis* sbase, WhichEye viewType) 
 
 
 
-float FractalView::brightness(const Vec3& p, const Vec3& n, const Vec3& z) const {
+double FractalView::brightness(const Vec3& p, const Vec3& n, const Vec3& z) const {
     /* values >1 are for phong */
     Vec3 l, r;
-    float absolute, result, a, b, c;
+    double absolute, result, a, b, c;
 
     /* vector point -> light source */
     l = _light - p;
@@ -271,9 +242,9 @@ float FractalView::brightness(const Vec3& p, const Vec3& n, const Vec3& z) const
     if (a > 0) {
         r = 2 * a * n - l;
         /* r...reflected ray */
-        c = r.dotf(z);
+        c = r.dot(z);
         if (c < 0) {
-            c = _phongmax * expf(_phongsharp * logf(-c));
+            c = _phongmax * exp(_phongsharp * log(-c));
         } else {
             c = 0;
         }
@@ -285,11 +256,44 @@ float FractalView::brightness(const Vec3& p, const Vec3& n, const Vec3& z) const
         result = _ambient;
     } else {
         result = a * b + _ambient;
-        result = fminf(result, 1.0); /* Lambert and ambient together can't get bigger than 1 */
+        result = fmin(result, 1.0); /* Lambert and ambient together can't get bigger than 1 */
         result += c;                   /* additional phong to get white */
-        result = fmaxf(result, 0);
+        result = fmax(result, 0);
     }
     return result;
 }
 
 
+
+
+int formatExternToIntern(FractalSpec& spec, FractalView& view) {
+    /* This is to change the input format to internal format */
+    /* Input: light relative to viewers position (for convenience of user) */
+    /* Internal: light absolute in space (for convenience of programmer) */
+    ViewBasis base;
+
+    if (view.calcbase(&base, nullptr, WhichEye::Monocular) != 0) {
+        return -1;
+    }
+    Vec3 ltmp = view._light[0] * base._x + view._light[1] * base._y + view._light[2] * base._z;
+    view._light = view._s + view._Mov[0] * base._x + view._Mov[1] * base._y;
+    /* Internal: square of bailout value (saves some time) */
+    spec._bailout *= spec._bailout;
+    return 0;
+}
+
+int formatInternToExtern(FractalSpec& frac, FractalView& view) {
+    /* Reverse process of "formatExternToIntern". see above */
+    ViewBasis base;
+
+    if (view.calcbase(&base, nullptr, WhichEye::Monocular) != 0) {
+        return -1;
+    }
+    frac._bailout = sqrt(frac._bailout);
+    Vec3 ltmp = view._light - view._s;
+    view._light = Vec3(
+        ltmp.dot(base._x) - view._Mov[0],
+        ltmp.dot(base._y) - view._Mov[1],
+        ltmp.dot(base._z));
+    return 0;
+}

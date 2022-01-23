@@ -17,6 +17,7 @@ std::ostream& operator<<(std::ostream& oo, const Vec3& v) {
 }
 
 
+
 template<>
 void tag_invoke(const json::value_from_tag&, json::value& jv, Quaternion<double> const& t) {
     jv = { t[0], t[1], t[2], t[3] };

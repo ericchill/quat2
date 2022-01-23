@@ -103,7 +103,7 @@ checkValidity();}
       Fl_Button add {
         label Add
         callback {_cuts.addPlane(_curNormal, _curPoint);
-scroll->value(_cuts.count() - 1, 1, 0, _cuts.count());
+scroll->value(static_cast<int>(_cuts.count()) - 1, 1, 0, static_cast<int>(_cuts.count()));
 setIndex(_cuts.count() - 1);}
         tooltip {Add a new intersection plane.} xywh {50 60 60 20} labelsize 12
       }
@@ -113,7 +113,7 @@ setIndex(_cuts.count() - 1);}
 if (_idx >= _cuts.count() && _idx != 0) {
     _idx = _cuts.count() - 1;
 }
-scroll->value(_idx, 1, 0, _cuts.count());
+scroll->value(static_cast<int>(_idx), 1, 0, static_cast<int>(_cuts.count()));
 setIndex(_idx);}
         tooltip {Delete the current plane.} xywh {50 80 60 20} labelsize 12
       }
@@ -151,7 +151,7 @@ checkValidity();} {}
   } {
     code {cuts = _cuts;} {}
   }
-  Function {setIndex(int idx)} {open return_type void
+  Function {setIndex(size_t idx)} {open selected return_type void
   } {
     code {if (idx < _cuts.count() || _cuts.count() != 0) {
     _idx = idx;
@@ -236,8 +236,7 @@ if (_cuts.count() == 0 && del->active()) {
 if (_cuts.count() != 0 && !del->active() && !_disabled) {
     del->activate();
 }
-scroll->value(_idx+1, _cuts.count(), 0, _cuts.count());} {selected
-    }
+scroll->value(static_cast<int>(_idx+1), 1, 0, static_cast<int>(_cuts.count()));} {}
   }
   Function {setView(const FractalView& view)} {open return_type void
   } {

@@ -1,18 +1,19 @@
 #pragma once
 
+#include "common.h"
+#include "json.h"
+
 #include <cmath>
 #include <iostream>
 #include <memory>
 #include <type_traits>
 
-#include "json.h"
 
-#ifdef __NVCC__
-#define CUDA_CALLABLE __host__ __device__
-#else
-#define CUDA_CALLABLE
+#ifndef __NVCC__
 #include <intrin.h>
 #endif
+
+#pragma warning( disable : 4324 )
 
 #define TOO_SMALL(x) (fabs(x) < 1e-100)
 #define TOO_BIG(x)   (fabs(x) > 1e+100)
@@ -34,9 +35,14 @@ public:
         _v[1] = y;
         _v[2] = z;
     }
-    CUDA_CALLABLE vec3(T* p) {
+    CUDA_CALLABLE vec3(const T* p) {
         for (int i = 0; i < nComponents; i++) {
             _v[i] = p[i];
+        }
+    }
+    CUDA_CALLABLE vec3(T x) {
+        for (int i = 0; i < nComponents; i++) {
+            _v[i] = x;
         }
     }
     CUDA_CALLABLE T& operator[](size_t i) {
@@ -88,11 +94,20 @@ public:
         *this = *this / s;
         return *this;
     }
-    CUDA_CALLABLE double dot(const vec3& o) const {
+    CUDA_CALLABLE T dot(const vec3& o) const {
         return _v[0] * o[0] + _v[1] * o[1] + _v[2] * o[2];
     }
-    CUDA_CALLABLE double magnitude() const {
+    CUDA_CALLABLE T magnitude() const {
         return sqrt(dot(*this));
+    }
+    CUDA_CALLABLE T magnitudeSquared() const {
+        return dot(*this);
+    }
+    CUDA_CALLABLE float dotf(const vec3& o) const {
+        return static_cast<float>(dot(o));
+    }
+    CUDA_CALLABLE float magnitudef() const {
+        return static_cast<float>(magnitude());
     }
     CUDA_CALLABLE vec3 normalized() const {
         T m = magnitude();
@@ -113,11 +128,11 @@ private:
 };
 
 template<typename T=double>
-inline vec3<T> operator*(T s, const vec3<T>& v) {
+inline CUDA_CALLABLE vec3<T> operator*(T s, const vec3<T>& v) {
     return v * s;
 }
 
-typedef vec3<> Vec3;
+typedef vec3<double> Vec3;
 
 std::ostream& operator<<(std::ostream& oo, const Vec3& v);
 
@@ -126,7 +141,7 @@ void tag_invoke(const json::value_from_tag&, json::value& jv, Vec3 const& t);
 Vec3 tag_invoke(const json::value_to_tag< Vec3 >&, json::value const& jv);
 
 
-inline Vec3 operator*(double s, const Vec3& v) {
+inline CUDA_CALLABLE Vec3 operator*(double s, const Vec3& v) {
     return v * s;
 }
 
@@ -302,6 +317,14 @@ public:
             }
         }
         return true;
+    }
+
+    CUDA_CALLABLE double vectorDot(const Quaternion& o) const {
+        double result = 0;
+        for (int i = 0; i < nComponents; i++) {
+            result += _q[i] * o[i];
+        }
+        return result;
     }
 };
 

@@ -20,125 +20,75 @@
 /* along with this program; if not, write to the Free Software */
 /* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. */
 
-#include "CReplacements.h"
-
-#include <new>
-#include "CReplacements.h"
-#ifndef NO_NAMESPACE
-//using namespace std;
-#endif
-
 #include "ImageWid.h"
 
-constexpr unsigned long ImageWid::TYPE = 0x0a0b0c0d;
+#include "CReplacements.h" // assert
+#include <new>
+
 
 ImageWid::ImageWid(int x, int y, int w, int h, const char *label)
-	: Fl_Widget(x, y, w, h, label), _data(0),
-/*	_damage_x(0), _damage_y(0), _damage_w(0), _damage_h(0),
-	_damaged(false),*/
-	_type(TYPE)
+	: Fl_Widget(x, y, w, h, label), _data(0)
 {
-	_data = new (std::nothrow) unsigned char[w*h*3];
+	_data = new uint8_t[w*h*3];
+	_lineDrawn = new bool[h];
+	fillArray<bool>(_lineDrawn, false, h);
 }
 
-ImageWid::~ImageWid()
-{
-//	is (nothrow) used with new, then the following must be called
-//	to free the memory.
-	operator delete[] (_data, std::nothrow);
+ImageWid::~ImageWid() {
+	delete _data;
+	delete _lineDrawn;
 }
-
-bool ImageWid::newImage(int w, int h)
-{
+#if 0
+bool ImageWid::newImage(int w, int h) {
 	operator delete[] (_data, std::nothrow);
-	_data = new (std::nothrow) unsigned char[w*h*3];
-	assert (_data != 0);
+	_data = new uint8_t[w*h*3];
 	memset(_data, 0, w*h*3);
 	Fl_Widget::size(w, h);
 	return true;
 }
-
+#endif
 void ImageWid::gray(int level) {
 	memset(_data, level, w() * h() * 3);
 	redraw();
 }
 
-void ImageWid::white()
-{
+void ImageWid::white() {
 	memset(_data, 255, w()*h()*3);
 	redraw();
 }
 
-/*
-void ImageWid::_damage(int x, int y, int w, int h)
-{
-	damage(1);
-	if (!_damaged) {
-		_damage_x = x; _damage_y = y;
-		_damage_w = w; _damage_h = h;
-		_damaged = true;
-		return;
+void ImageWid::set_pixel(int _x, int _y, uint8_t r, uint8_t g, uint8_t b) {
+	int pixIdx = 3 * (w() * _y + _x);
+	_data[pixIdx]   = r;
+	_data[pixIdx+1] = g;
+	_data[pixIdx+2] = b;
+	damage(FL_DAMAGE_CHILD, x()+_x, y()+_y, 1, 1);
+}
+
+int randomFoo = 0;
+void ImageWid::set_line_segment(int x1, int x2, int _y, uint8_t *d) {
+	if (_lineDrawn[_y]) {
+		randomFoo = 1;
 	}
-
-	int x2 = x + w, _damage_x2 = _damage_x + _damage_w;
-	int y2 = y + h, _damage_y2 = _damage_y + _damage_h;
-	int xn = (x < _damage_x) ? x : _damage_x;
-	int xn2 = (x2 > _damage_x2) ? x2 : _damage_x2;
-	int yn = (y < _damage_y) ? y : _damage_y;
-	int yn2 = (y2 > _damage_y2) ? y2 : _damage_y2;
-	_damage_x = xn;
-	_damage_y = yn;
-	_damage_w = xn2 - xn;
-	_damage_h = yn2 - yn;
-
-	// clipping
-//	assert(_damage_x>=0);
-//	assert(_damage_y>=0);
-//	assert(_damage_w<=w());
-//	assert(_damage_h<=h());
-}
-*/
-
-void ImageWid::set_pixel(int _x, int _y, unsigned char r, unsigned char g, unsigned char b)
-{
-	_data[3*(w()*_y+_x)]   = r;
-	_data[3*(w()*_y+_x)+1] = g;
-	_data[3*(w()*_y+_x)+2] = b;
-	damage(1, x()+_x, y()+_y, 1, 1);
-}
-
-void ImageWid::set_area(int x1, int x2, int _y, unsigned char *d)
-{
+	_lineDrawn[_y] = true;
 	memcpy(_data+3*(w()*_y+x1), d, 3*(x2-x1+1));
-	damage(1, x()+x1, y()+_y, x2-x1+1, 1);
+	damage(FL_DAMAGE_CHILD, x()+x1, y()+_y, x2-x1+1, 1);
 }
 
-void ImageWid::set_line(int n, unsigned char *d)
-{
+void ImageWid::set_line(int n, uint8_t *d) {
 	memcpy(_data+3*w()*n, d, 3*w());
-	damage(1, x(), y()+n, w(), 1);
+	damage(FL_DAMAGE_CHILD, x(), y()+n, w(), 1);
 }
 
-void ImageWid::get_line(int n, unsigned char *d) const
-{
+void ImageWid::get_line(int n, uint8_t *d) const {
 	memcpy(d, _data+3*w()*n, 3*w());
 }
 
-void ImageWid::draw()
-{
-//	int _x = 0, _y = 0, _w = w(), _h = h();
-//	if (damage()==1) {
-//		_x = _damage_x; _y = _damage_y; _w = _damage_w; _h = _damage_h;
-//	}
-//cout << "draw: " << (int)damage() << ": " << _x << ", " << _y << ", " << _w << ", " << _h << endl;
-//	fl_draw_image(_data+3*(_y*w()+_x), x()+_x, y()+_y, _w, _h, 3, w()-_w);
-//	_damage_x = 0; _damage_y = 0; _damage_w = 0; _damage_h = 0;
-//	_damaged = false;
+void ImageWid::draw() {
 	fl_draw_image(_data, x(), y(), w(), h());
 }
 
-int ImageWid::handle(int event)
-{
+int ImageWid::handle(int event) {
 	switch (event) {
 		case FL_ENTER:
 		case FL_LEAVE:

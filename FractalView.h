@@ -1,4 +1,5 @@
 #pragma once
+#include "common.h"
 #include "json.h"
 #include "qmath.h"
 
@@ -20,6 +21,13 @@ public:
         _x = x;
         _y = y;
         _z = z;
+    }
+    ViewBasis& operator=(const ViewBasis& o) {
+        _O = o._O;
+        _x = o._x;
+        _y = o._y;
+        _z = o._z;
+        return *this;
     }
     ViewBasis(json::value const& jv);
     virtual json::value toJSON() const;
@@ -84,7 +92,7 @@ public:
     /* n: normal vector (length 1 !!!) of object in lightened point */
     /* z: vector point to viewer (length 1 !!!) */
     /* returns brightness from 0.0 to 1.0 / or 255, if ls=p (=error) */
-    float brightness(const Vec3& p, const Vec3& n, const Vec3& z) const;
+    double brightness(const Vec3& p, const Vec3& n, const Vec3& z) const;
 
     void reset();
     void print() const;
@@ -96,11 +104,16 @@ public:
     double _Mov[2];
     double _LXR;
     int _xres, _yres, _zres;
-    float _interocular;
-    float _phongmax, _phongsharp, _ambient;
+    double _interocular;
+    double _phongmax, _phongsharp, _ambient;
     int _antialiasing;
 };
 
 FractalView tag_invoke(const json::value_to_tag< FractalView >&, json::value const& jv);
 
 
+class FractalSpec;
+
+int formatExternToIntern(FractalSpec& spec, FractalView& view);
+
+int formatInternToExtern(FractalSpec& frac, FractalView& view);

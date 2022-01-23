@@ -1,7 +1,9 @@
 #ifndef CHILDWINDOW_H
 #define CHILDWINDOW_H
 
+#pragma warning(push, 0)
 #include <FL/Fl_Window.H>
+#pragma warning(pop)
 
 class ChildWindow : public Fl_Window
 {

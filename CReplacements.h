@@ -1,5 +1,7 @@
 #pragma once
 
+#include "common.h"
+
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -29,12 +31,9 @@ private:
 };
 
 
-class AssertionException : public std::exception {
-private:
-	const char* _msg;
+class AssertionException : public QuatException {
 public:
-	AssertionException(const char* msg) : _msg(msg) {}
-	virtual const char* what() const noexcept { return _msg; }
+	AssertionException(const char* msg) : QuatException(msg) {}
 };
 
 inline void i_assert(const char *f, int l, const char *expr) {

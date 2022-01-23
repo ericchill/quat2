@@ -1,6 +1,8 @@
 #pragma once
 
+#pragma warning ( push, 0 )
 #include "grammar.h"
+#pragma warning ( pop )
 #include "common.h"
 
 #include <string>

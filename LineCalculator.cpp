@@ -1,50 +1,105 @@
 #include "LineCalculator.h"
-#include "calculate.h"
 #include "kernel.h"
 #include "memory.h"
 #include "iter.h"
 #include "quat.h"
+#include "ExprEval.h"
 
 #define _USE_MATH_DEFINES // To get M_PI & c.
 #include <math.h>
+
+static thread_local Quat* thread_orbit = nullptr;
+static thread_local int thread_maxOrbit = 0;
+
+static int orbIndex(double i) {
+    return static_cast<int>(clamp<double>(i, 0, thread_maxOrbit));
+}
+
+static double orbitComponent(double oi, int compIdx) {
+    return thread_orbit[orbIndex(oi) + 1][compIdx];
+}
+
+static double orbite(double i) {
+    return orbitComponent(i, 0);
+}
+
+static double orbitj(double i) {
+    return orbitComponent(i, 1);
+}
+
+static double orbitk(double i) {
+    return orbitComponent(i, 2);
+}
+
+static double orbitl(double i) {
+    return orbitComponent(i, 3);
+}
+
+static double orbitmag(double i) {
+    return thread_orbit[orbIndex(i) + 1].magnitude();
+}
+
+static double orbitarg(double i) {
+    Quat q = thread_orbit[orbIndex(i) + 1];
+    return atan2(q[0], q.imag().magnitude());
+}
+
+static double orbitcarg(double i) {
+    Quat q = thread_orbit[orbIndex(i) + 1];
+    return atan2(q[0], q[1]);
+}
+
+static double orbitdot(double i, double j) {
+    Quat a = thread_orbit[orbIndex(i) + 1];
+    Quat b = thread_orbit[orbIndex(j) + 1];
+    return a.vectorDot(b);
+}
+
+EvalSymbol LineCalculator::_xSymbol("x");
+EvalSymbol LineCalculator::_ySymbol("y");
+EvalSymbol LineCalculator::_zSymbol("z");
+EvalSymbol LineCalculator::_wSymbol("w");
+EvalSymbol LineCalculator::_xbSymbol("xb");
+EvalSymbol LineCalculator::_ybSymbol("yb");
+EvalSymbol LineCalculator::_zbSymbol("zb");
+EvalSymbol LineCalculator::_wbSymbol("wb");
+EvalSymbol LineCalculator::_maxIterSymbol("maxiter");
+EvalSymbol LineCalculator::_lastIterSymbol("lastiter");
+EvalSymbol LineCalculator::_lastOrbitSymbol("lastorbit");
+EvalSymbol LineCalculator::_maxOrbitSymbol("maxorbit");
+EvalSymbol LineCalculator::_isInteriorSymbol("is_interior");
+
 
 LineCalculator::LineCalculator(
     const FractalSpec& fractal,
     const FractalView& view,
     const CutSpec& cuts,
+    Expression *colorExpr,
     ViewBasis& base,
     ViewBasis& sbase,
     ZFlag zflag)
-    : _f(fractal), _v(view), _cuts(cuts) {
+    : _f(fractal), _v(view), _cuts(cuts), _colorExpr(colorExpr) {
 
     switch (_f._formula) {
     case 0:
-        _iterate_no_orbit = iterate_0_no_orbit;
-        _iterate = iterate_0;
-        _iternorm = iternorm_0;
+        _iterate_no_orbit = basic_iterate_sans_orbit<Iter0Op>;
+        _iterate = basic_iterate<Iter0Op>;
         break;
     case 1:
-        _iterate_no_orbit = iterate_1_no_orbit;
-        _iterate = iterate_1;
-        _iternorm = iternorm_1;
+        _iterate_no_orbit = basic_iterate_sans_orbit<Iter1Op>;
+        _iterate = basic_iterate<Iter1Op>;
         break;
     case 2:
-        _iterate_no_orbit = _iterate = iterate_2;
-        _iternorm = 0;
+        _iterate_no_orbit = basic_iterate_sans_orbit<Iter2Op>;
+        _iterate = basic_iterate<Iter2Op>;
         break;
     case 3:
-        _iterate_no_orbit = iterate_3_no_orbit;
-        _iterate = iterate_3;
-        _iternorm = 0;
+        _iterate_no_orbit = basic_iterate_sans_orbit<Iter3Op>;
+        _iterate = basic_iterate<Iter3Op>;
         break;
     case 4:
-        _iterate_no_orbit = iterate_4_no_orbit;
-        _iterate = iterate_4;
-        _iternorm = 0;;
-        break;
-    case 5:
-        _iterate_no_orbit = _iterate = iterate_bulb;
-        _iternorm = 0;
+        _iterate_no_orbit = basic_iterate_sans_orbit<Iter3Op>;
+        _iterate = basic_iterate<Iter3Op>;
         break;
     default:
         throw std::invalid_argument("Invalid formula number");
@@ -58,58 +113,60 @@ LineCalculator::LineCalculator(
     _aabase = _sbase;
     if (shouldCalculateDepths(zflag) && _v._antialiasing > 1) {
         _aabase._x /= _v._antialiasing;
+        _aabase._y /= _v._antialiasing;
     }
 
-    _lBufSize = KLUDGE_PAD(_v._xres * _v._antialiasing * (_v._antialiasing + 1L));
+    _lBufSize = KLUDGE_PAD(_v._xres * _v._antialiasing * (_v._antialiasing + 1));
 
-    _xStarts = CUDAStorage<Quat>::allocHost(_lBufSize);
-    _manyOrbits = CUDAStorage<Quat>::allocHost(_lBufSize * (fractal._maxOrbit + 2));
+    _manyOrbits = CUDAStorage<Quat>::allocHost(_lBufSize * (fractal._maxOrbit + LineCalculator::orbitSpecial()));
     _distances = CUDAStorage<float>::allocHost(_lBufSize);
     _lastIters = CUDAStorage<float>::allocHost(_lBufSize);
     _lBuf = CUDAStorage<float>::allocHost(_lBufSize);
+    _bBuf = CUDAStorage<float>::allocHost(_v._xres);
+
+    EvalContext::setupBasicVariables(_colorContext);
+    _colorContext.setUnaryFunc("orbite", orbite);
+    _colorContext.setUnaryFunc("orbitj", orbitj);
+    _colorContext.setUnaryFunc("orbitk", orbitk);
+    _colorContext.setUnaryFunc("orbitl", orbitl);
+    _colorContext.setUnaryFunc("orbitmag", orbitmag);
+    _colorContext.setUnaryFunc("orbitarg", orbitarg);
+    _colorContext.setUnaryFunc("orbitcarg", orbitcarg);
+    _colorContext.setBinaryFunc("orbitdot", orbitdot);
 }
 
 
 LineCalculator::~LineCalculator() {
-    CUDAStorage<Quat>::freeHost(_xStarts);
     CUDAStorage<Quat>::freeHost(_manyOrbits);
     CUDAStorage<float>::freeHost(_distances);
     CUDAStorage<float>::freeHost(_lastIters);
+    CUDAStorage<float>::freeHost(_lBuf);
+    CUDAStorage<float>::freeHost(_bBuf);
 }
 
 
 int LineCalculator::calcline(
     GPURowCalculator& rowCalc,
     int y,
-    float* lBuf, float* bBuf, float* cBuf,
+    float* lBuf,
+    float* bBuf,
+    float* cBuf,
     ZFlag zflag) {
-    int x, xaa, yaa;
+    int x;
     int antialiasing = _v._antialiasing;
-    int aaSquared = antialiasing * antialiasing;
 
-    _xs = _xp;
-    _xp[3] = _f._lTerm;
-    _xs[3] = _f._lTerm;
-    for (x = 0; x < _v._xres; x++) {
-        _xs += _sbase._x;
-        int lbufIdx = (x + _v._xres) * antialiasing;
-        for (yaa = 0; yaa < antialiasing; yaa++) {
-            for (xaa = 0; xaa < antialiasing; xaa++) {
-                int aaLbufIdx = aaLBufIndex(x, xaa, yaa, _v._xres, antialiasing);
-                _xStarts[aaLbufIdx] = _xs + yaa * _aabase._y + xaa * _aabase._x;
-            }
-        }
-    }
     rowCalc.obj_distances(
-            *this, _lBufSize, _xStarts,
-            _manyOrbits, _distances, _lastIters);
+            *this, _lBufSize, y,
+            _manyOrbits, _distances, _lastIters, lBuf, bBuf);
+#if 0
+    int aaSquared = antialiasing * antialiasing;
     for (x = 0; x < _v._xres; x++) {
         int lbufIdx = (x + _v._xres) * antialiasing;
         lBuf[lbufIdx] = _distances[lbufIdx];
         if (lBuf[lbufIdx] != _v._zres) {
             float itersum = _lastIters[lbufIdx];
-            for (yaa = 0; yaa < antialiasing; yaa++) {
-                for (xaa = 0; xaa < antialiasing; xaa++) {
+            for (int yaa = 0; yaa < antialiasing; yaa++) {
+                for (int xaa = 0; xaa < antialiasing; xaa++) {
                     if (xaa != 0 || yaa != 0) {
                         int aaLbufIdx = aaLBufIndex(x, xaa, yaa, _v._xres, antialiasing);
                         lBuf[aaLbufIdx] = _distances[aaLbufIdx];
@@ -125,16 +182,15 @@ int LineCalculator::calcline(
             bBuf[x] = 0;
         }
     }
+#endif
     for (x = 0; x < _v._xres; x++) {
         if (bBuf[x] != 0) {
             bBuf[x] = brightpoint(x, y, lBuf);
             int lbufIdx = (x + _v._xres) * antialiasing;
             if (shouldCalculateImage(zflag) && bBuf[x] > 0.0001) {
-                GlobalOrbit = &_manyOrbits[lbufIdx * (_f._maxOrbit + 2)];
+                thread_maxOrbit = _f._maxOrbit;
+                thread_orbit = &_manyOrbits[lbufIdx * (_f._maxOrbit + LineCalculator::orbitSpecial())];
                 _f._lastiter = _lastIters[lbufIdx];
-                MAXITER = _f._maxiter;
-                LASTITER = _f._lastiter;
-                LASTORBIT = std::min<double>(LASTITER, _f._maxOrbit);
                 cBuf[x] = colorizepoint();
             }
 
@@ -143,69 +199,59 @@ int LineCalculator::calcline(
     return 0;
 }
 
-
-extern progtype prog;
-
 /* finds color for the point c->xq */
 float LineCalculator::colorizepoint() {
-    static size_t xh = progtype::nullHandle, yh = progtype::nullHandle, zh = progtype::nullHandle, wh = progtype::nullHandle;
-    static size_t xbh = progtype::nullHandle, ybh = progtype::nullHandle, zbh = progtype::nullHandle, wbh = progtype::nullHandle;
-    static size_t mih = progtype::nullHandle, lih = progtype::nullHandle;
-    static size_t pih = progtype::nullHandle;
-    char notdef;
 
-    prog.setVariable("pi", &pih, M_PI);
+    _colorContext.setVariable(_xSymbol, _xq[0]);
+    _colorContext.setVariable(_ySymbol, _xq[1]);
+    _colorContext.setVariable(_zSymbol, _xq[2]);
+    _colorContext.setVariable(_wSymbol, _xq[3]);
 
-    prog.setVariable("x", &xh, _xq[0]);
-    prog.setVariable("y", &yh, _xq[1]);
-    prog.setVariable("z", &zh, _xq[2]);
-    prog.setVariable("w", &wh, _xq[3]);
+    _colorContext.setVariable(_xbSymbol, thread_orbit[_f._maxOrbit - 1][0]);
+    _colorContext.setVariable(_ybSymbol, thread_orbit[_f._maxOrbit - 1][1]);
+    _colorContext.setVariable(_zbSymbol, thread_orbit[_f._maxOrbit - 1][2]);
+    _colorContext.setVariable(_wbSymbol, thread_orbit[_f._maxOrbit - 1][3]);
 
-    prog.setVariable("xb", &xbh, GlobalOrbit[_f._maxOrbit - 1][0]);
-    prog.setVariable("yb", &ybh, GlobalOrbit[_f._maxOrbit - 1][1]);
-    prog.setVariable("zb", &zbh, GlobalOrbit[_f._maxOrbit - 1][2]);
-    prog.setVariable("wb", &wbh, GlobalOrbit[_f._maxOrbit - 1][3]);
+    _colorContext.setVariable(_maxIterSymbol, _f._maxiter);
+    _colorContext.setVariable(_lastIterSymbol, _f._lastiter);
+    _colorContext.setVariable(_lastOrbitSymbol, std::min<double>(_f._lastiter, _f._maxOrbit));
+    _colorContext.setVariable(_maxOrbitSymbol, _f._maxOrbit - 1);
 
-    prog.setVariable("maxiter", &mih, MAXITER);
-    prog.setVariable("lastiter", &lih, LASTITER);
-    prog.setVariable("lastorbit", &lih, LASTORBIT);
+    _colorContext.setVariable(_isInteriorSymbol, _f._lastiter == _f._maxiter);
 
-    double CBuf = prog.calculate(&notdef);
+    double color = _colorExpr->eval(_colorContext);
 
     /* Make sure result is between 0 and 1 */
-    CBuf = fmod(CBuf, 1.0);
-    if (CBuf < 0) {
-        CBuf = 1 + CBuf;
+    color = fmod(color, 1.0);
+    if (color < 0) {
+        color = 1 + color;
     }
-    return static_cast<float>(CBuf);
+    return static_cast<float>(color);
 }
 
 
 float LineCalculator::brightpoint(int x, int y, float* lBuf) {
-    Quat xp;
-    float absolute = 0.0;
-    float depth, bright;
-
-    xp[3] = _f._lTerm;
-    float bBuf = 0.0;
-    float sqranti = static_cast<float>(_v._antialiasing * _v._antialiasing);
+    double invAntialiasing = 1.0 / _v._antialiasing;
+    double bBuf = 0.0;
+    double sqranti = static_cast<double>(_v._antialiasing * _v._antialiasing);
     for (int ya = 0; ya < _v._antialiasing; ya++) {
         for (int xa = 0; xa < _v._antialiasing; xa++) {
             _xcalc = _sbase._O
-                + (x + xa / _v._antialiasing) * _sbase._x
-                + (y + ya / _v._antialiasing) * _sbase._y;
-            depth = lBuf[(x + (ya + 1) * _v._xres) * _v._antialiasing + xa];
+                + (x + xa * invAntialiasing) * _sbase._x
+                + (y + ya * invAntialiasing) * _sbase._y;
+            double depth = lBuf[aaLBufIndex(x, xa, ya, _v._xres, _v._antialiasing)];
             if (depth != _v._zres) {
-                xp = _xcalc + depth * _sbase._z;
+                Quat xp = _xcalc + depth * _sbase._z;
+                xp[3] = _f._lTerm;
                 /* Preserve point on object for colorizepoint */
                 if (xa == 0 && ya == 0) {
                     _xq = xp;
                 }
-                float dz2;
 
-                float dz1 = lBuf[(x + ya * _v._xres) * _v._antialiasing + xa] - depth;
+                double dz1 = lBuf[aaLBufIndex(x, xa, ya - 1, _v._xres, _v._antialiasing)] - depth;
+                double dz2;
                 if (x + xa > 0) {
-                    dz2 = lBuf[(x + (ya + 1) * _v._xres) * _v._antialiasing + (xa - 1)] - depth;
+                    dz2 = lBuf[aaLBufIndex(x, xa - 1, ya, _v._xres, _v._antialiasing)] - depth;
                 } else {
                     dz2 = 0.0;
                 }
@@ -215,16 +261,11 @@ float LineCalculator::brightpoint(int x, int y, float* lBuf) {
                 /* For a correct cross product, each factor must be multiplied
                with c->v.antialiasing, but as n gets normalized afterwards,
                this calculation is not necessary for our purpose. */
-                absolute = static_cast<float>(n.magnitude());
                 /* ensure that n points to viewer */
-                /* if (scalar3prod(n, z) > 0) absolute = -absolute; */
+                //if (n.dot(z) > 0) n = -n;
                 /* ideally there should stand >0 */
-
-                assert(absolute != 0.0);
-                n /= absolute;
-                bright = _v.brightness(xp, n, _base._z);
-                bright /= sqranti;
-                bBuf += bright;
+                double bright = _v.brightness(xp, n.normalized(), _base._z);
+                bBuf += bright / sqranti;
             }
         }
     }

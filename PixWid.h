@@ -1,10 +1,10 @@
 #ifndef PIXWID_H
 #define PIXWID_H
 
-
+#pragma warning(push, 0)
 #include <FL/Fl_Widget.H>
 #include <FL/Fl_Pixmap.H>
-
+#pragma warning(pop)
 
 class PixWid : public Fl_Widget
 {

@@ -4,12 +4,11 @@
 
 #include <vector>
 
-#ifndef NO_NAMESPACE
-//using namespace std;
-#endif
 
+#pragma warning(push, 0)
 #include <FL/Fl_Valuator.H>
 #include <FL/Fl_Button.H>
+#pragma warning(pop)
 
 class Fl_Value_Input;
 class Fl_Output;

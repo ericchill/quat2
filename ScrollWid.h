@@ -1,7 +1,9 @@
 #ifndef SCROLLWID_H
 #define SCROLLWID_H
 
+#pragma warning(push, 0)
 #include <FL/Fl_Group.H>
+#pragma warning(pop)
 
 class Fl_Scrollbar;
 class Fl_Widget;

@@ -24,25 +24,20 @@
 #include "CReplacements.h"
 #include "quat.h"
 #include "MainWindow.h"
-#include "ver.h"
 
+#pragma warning(push, 0)
 #include <FL/Fl.H>
 #include <FL/Fl_Button.H>
 #include <FL/fl_ask.H>
+#pragma warning(pop)
 
 #include <math.h>
-#include <ctime>
+//#include <ctime>
 
-extern time_t old_time;
-
-int JuliaPreview::putLine(long x1, long x2, long, int y, unsigned char *Buf, bool)
+void JuliaPreview::putLine(long x1, long x2, long, int y, uint8_t *lineData, bool)
 {
-	set_area(x1, x2, y, Buf+x1*3);
-	return 0;
+	set_line_segment(x1, x2, y, lineData+x1*3);
 }
-
-void JuliaPreview::eol(int)
-{}
 
 JuliaPreview::JuliaPreview(int X, int Y, int W, int H, const char *label)
 	: ImageWid(X, Y, W, H, label), _updated(false), _stereo(false), _ownView(false),
@@ -56,14 +51,9 @@ JuliaPreview::~JuliaPreview()
 
 void JuliaPreview::CalcImage3D()
 {
-	int xs = 0, ys = 0;
+	int ys = 0;
 	std::stringstream errorMsg;
 
-	Initialize = DUMMY_Initialize;
-	Done = DUMMY_Done;
-	QU_getline = DUMMY_getline;
-	check_event = MainWindow::FLTK_check_event;
-	Change_Name = DUMMY_Change_Name;
 	_calcFractal.reset();
 	for (int j = 0; j < 4; ++j) {
 		_calcFractal.fractal()._p[j] = _fractal.fractal()._p[j];
@@ -91,12 +81,16 @@ void JuliaPreview::CalcImage3D()
 
 	bool oldstereo = _imagestereo;
 	_imagestereo = _calcFractal.view().isStereo();
-	old_time = calc_time;
-	CreateImage(errorMsg, &xs, &ys, _calcFractal, ZFlag::NewImage, *this);
-	calc_time = old_time;
-	if (errorMsg.str().size() != 0) {
+	try {
+		CreateImage(*this, errorMsg, &ys, _calcFractal, ZFlag::NewImage);
+		if (errorMsg.str().size() != 0) {
+			_imagestereo = oldstereo;
+			fl_alert("%s", errorMsg.str().c_str());
+		}
+	}
+	catch (QuatException& ex) {
 		_imagestereo = oldstereo;
-		fl_alert("%s", errorMsg.str().c_str());
+		fl_alert("%s", ex.what());
 	}
 
 	_pic_ownView = _ownView;

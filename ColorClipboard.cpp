@@ -20,7 +20,9 @@
 /* along with this program; if not, write to the Free Software */
 /* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. */
 
+#pragma warning(push, 0)
 #include <FL/fl_draw.H>
+#pragma warning(pop)
 
 #include "ColorClipboard.h"
 
@@ -30,9 +32,9 @@ void ColorClipboard::draw()
 	fl_rectf(
 		x() + 2, y() + 2,
 		w() - 4, h() - 4,
-		static_cast<int>(_r * 255.0),
-		static_cast<int>(_g * 255.0),
-		static_cast<int>(_b * 255.0));
+		static_cast<uchar>(_r * 255.0),
+		static_cast<uchar>(_g * 255.0),
+		static_cast<uchar>(_b * 255.0));
 }
 
 int ColorClipboard::handle(int event)

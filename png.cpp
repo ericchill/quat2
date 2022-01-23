@@ -146,7 +146,7 @@ PNGFile::~PNGFile() {
     }
 }
 
-int PNGFile::getNextChunk() {
+bool PNGFile::getNextChunk() {
     if (1 == _position) {
         fseek(_fd, (long)_length + 4, SEEK_CUR);
     } else if (2 == _position) {
@@ -154,8 +154,7 @@ int PNGFile::getNextChunk() {
     }
     _position = 1;
     _length = readLong(_fd);
-    fread_s(_chunk_type, sizeof(_chunk_type), 1, sizeof(_chunk_type), _fd);
-    return 0;
+    return 1 != fread_s(_chunk_type, sizeof(_chunk_type), 1, sizeof(_chunk_type), _fd);
 }
 
 int PNGFile::readChunkData(uint8_t* mem) {
@@ -322,7 +321,7 @@ int PNGFile::doUnFiltering(uint8_t* Buf, uint8_t* Buf_up) {
             } else {
                 prior = 0;
             }
-            if (Buf_up != NULL) {
+            if (Buf_up != nullptr) {
                 up = Buf_up[uj];
             } else {
                 up = 0;
@@ -333,7 +332,7 @@ int PNGFile::doUnFiltering(uint8_t* Buf, uint8_t* Buf_up) {
         break;
     case 4:             /* Paeth */
         for (size_t uj = 1; uj <= _info.width * bytesPerPixel; uj++) {
-            if (Buf_up != NULL) {
+            if (Buf_up != nullptr) {
                 up = Buf_up[uj];
             } else {
                 up = 0;
@@ -343,7 +342,7 @@ int PNGFile::doUnFiltering(uint8_t* Buf, uint8_t* Buf_up) {
             } else {
                 prior = 0;
             }
-            if (uj > bytesPerPixel && Buf_up != NULL) {
+            if (uj > bytesPerPixel && Buf_up != nullptr) {
                 upperleft = Buf_up[uj - bytesPerPixel];
             } else {
                 upperleft = 0;
@@ -499,7 +498,7 @@ int PNGFile::endIDAT() {
     int err;
     uint8_t longBuf[sizeof(uint32_t)];
 
-    if (NULL == _readbuf) {
+    if (nullptr == _readbuf) {
         return -1;  /* endIDAT called too early */
     }
     do {
@@ -535,7 +534,9 @@ int PNGFile::posOverIEND() {
     PNGFile last;
 
     while (0 != memcmp(_chunk_type, image_end_label, sizeof(_chunk_type))) {
-        getNextChunk();
+        if (!getNextChunk()) {
+            return 1;
+        }
     }
     fseek(_fd, -8, SEEK_CUR);
     return 0;
@@ -544,9 +545,12 @@ int PNGFile::posOverIEND() {
 int PNGFile::posOverIHDR() {
     fseek(_fd, 8, SEEK_SET);
     _length = readLong(_fd);
-    fread_s(_chunk_type, sizeof(_chunk_type), 1, sizeof(_chunk_type), _fd);
-    _position = 1;
-    return 0;
+    if (1 == fread_s(_chunk_type, sizeof(_chunk_type), 1, sizeof(_chunk_type), _fd)) {
+        _position = 1;
+        return 0;
+    } else {
+        return 1;
+    }
 }
 
 

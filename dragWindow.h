@@ -1,4 +1,8 @@
+#pragma once
+
+#pragma warning(push, 0)
 #include <FL/Fl_Window.H>
+#pragma warning(pop)
 
 class dragWindow : public Fl_Window {
 public:

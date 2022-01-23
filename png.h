@@ -1,13 +1,15 @@
 #pragma once
 
+#include "common.h"
+
 #include <zlib.h>
 #include <stdio.h>
 #include <cstdint>
 #include <stdexcept>
 
-class PNGException : public std::exception {
+class PNGException : public QuatException {
 public:
-    PNGException(char const* const msg) : std::exception(msg) {
+    PNGException(char const* const msg) : QuatException(msg) {
     }
 };
 
@@ -69,7 +71,7 @@ public:
 
     /* Reads length and chunk type of next chunk in filename */
     /* and sets fields length and chunk_type */
-    int getNextChunk();
+    bool getNextChunk();
     /* Reads data of a chunk. It is required that the length and header */
     /* of the chunk has already been read. If not, function returns */
     /* -1. -2 indicates an invalid CRC */

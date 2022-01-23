@@ -30,6 +30,7 @@
 #include "files.h"   
 #include "memory.h"
 #include "colors.h"
+#include "quatfiles.h"
 
 static int readNextCompressed(z_stream* d, unsigned char* s);
 static int ReadNextDouble(std::ostream& errorMsg, z_stream* s, double* d);
@@ -68,7 +69,7 @@ void TruncateFileExt(char* filename) {
 char* FilenameWithoutPath(char* filename) {
     char* s;
 
-    if ((s = strrchr(filename, slash)) == NULL) {
+    if (nullptr == (s = strrchr(filename, slash))) {
         s = filename;
     } else {
         s++;
@@ -80,6 +81,7 @@ int ParseFile(
     std::ostream& errorMsg,
     const char* name,
     FractalPreferences& fractal) {
+    fractal.fractal()._maxOrbit = 100;
     std::ifstream input;
     input.open(name, std::ios::in);
     if (input.is_open()) {
@@ -104,7 +106,6 @@ int writeQuatPNGHead(
     FILE** png,
     PNGFile& png_internal,
     int xstart, int ystart,
-    long calctime,
     const FractalPreferences& fractal,
     ZFlag zflag)
     /* rewrites filename "name" */
@@ -122,7 +123,7 @@ int writeQuatPNGHead(
     strcpy_s(pngname, sizeof(pngname), name);
     ConvertPath(pngname);
 
-    errno_t err = fopen_s(png, pngname, "w+b");
+    std::ignore = fopen_s(png, pngname, "w+b");
     if (nullptr == *png) {
         return -1;
     }
@@ -186,14 +187,10 @@ int writeQuatPNGHead(
     uBuf[i + 2] = (unsigned char)(xstart & 0xffL);    /* LSB of actx */
     uBuf[i + 3] = (unsigned char)(ystart >> 8 & 0xffL); /* MSB of acty */
     uBuf[i + 4] = (unsigned char)(ystart & 0xffL);    /* LSB of acty */
-    uBuf[i + 5] = (unsigned char)(calctime >> 24 & 0xffL);
-    uBuf[i + 6] = (unsigned char)(calctime >> 16 & 0xffL);
-    uBuf[i + 7] = (unsigned char)(calctime >> 8 & 0xffL);
-    uBuf[i + 8] = (unsigned char)(calctime & 0xffL);
     i = i + 8;
 
     /* convert FractalPreferences to ascii */
-    std::string fracJSON = json::serialize(fractal.toJSON());
+    std::string fracJSON = json::serialize(fractal.toJSON(PS_ALL));
 #if 0
     z_stream c_stream;
     c_stream.zalloc = nullptr;
@@ -224,6 +221,7 @@ int readAllCompressed(z_stream* d, unsigned char* s, size_t maxBytes) {
     return inflate(d, Z_FINISH);
 }
 
+#if 0
 int readNextCompressed(z_stream* d, unsigned char* s) {
     int err = Z_OK;
     int i = 0;
@@ -267,12 +265,12 @@ int ReadNextInt(std::ostream& errorMsg, z_stream* s, int* i) {
 
     return 0;
 }
+#endif
 
 /* RC :  -3 No quat chunk; -4 No memory; -5 No Quat-PNG; -128 filename ver higher
    than progver */
 int ReadParameters(
     std::ostream& errorMsg,
-    int* xstart,
     int* ystart,
     PNGFile& internal,
     FractalPreferences& fractal) {
@@ -284,7 +282,10 @@ int ReadParameters(
 
     /* search until quAt chunk found */
     while (!(internal.checkChunkType(quat_chunk_label) || internal.checkChunkType(image_end_label))) {
-        internal.getNextChunk();
+        if (!internal.getNextChunk()) {
+            errorMsg << "Can't read PNG chunk." << std::endl;
+            return -3;
+        }
     }
     /* No quAt chunk? */
     if (internal.checkChunkType(image_end_label)) {
@@ -311,16 +312,11 @@ int ReadParameters(
         errorMsg << "PNG is from an unsupported older version of Quat." << std::endl;
         return -5;
     }
-    *xstart = ((Buf[strlen(s) + 1] << 8) & 0xff00) | Buf[strlen(s) + 2];
+    // ignore = ((Buf[strlen(s) + 1] << 8) & 0xff00) | Buf[strlen(s) + 2];
     *ystart = ((Buf[strlen(s) + 3] << 8) & 0xff00) | Buf[strlen(s) + 4];
     d.zalloc = nullptr;
     d.zfree = nullptr;
     err = inflateInit(&d);
-
-    calc_time = ((Buf[strlen(s) + 5] << 24) & 0xff000000L)
-        | ((Buf[strlen(s) + 6] << 16) & 0xff0000L)
-        | ((Buf[strlen(s) + 7] << 8) & 0xff00L)
-        | Buf[strlen(s) + 8];
     d.next_in = &(Buf[strlen(s) + 9]);
     d.avail_in = static_cast<uInt>(internal.length() - strlen(s) - 9);
 
@@ -350,7 +346,9 @@ int updateQUATChunk(PNGFile& internal, int actx, int acty) {
 
     /* search until quAt chunk found */
     while (!(internal.checkChunkType(quat_chunk_label) || internal.checkChunkType(image_end_label))) {
-        internal.getNextChunk();
+        if (!internal.getNextChunk()) {
+            return -3;
+        }
     }
     /* No quAt chunk? */
     if (internal.checkChunkType(image_end_label)) {
@@ -367,10 +365,6 @@ int updateQUATChunk(PNGFile& internal, int actx, int acty) {
     Buf[strlen(s) + 2] = (unsigned char)(actx & 0xffL);      /* LSB of actx */
     Buf[strlen(s) + 3] = (unsigned char)(acty >> 8 & 0xffL);   /* MSB of acty */
     Buf[strlen(s) + 4] = (unsigned char)(acty & 0xffL);      /* LSB of acty */
-    Buf[strlen(s) + 5] = (unsigned char)(calc_time >> 24 & 0xffL);
-    Buf[strlen(s) + 6] = (unsigned char)(calc_time >> 16 & 0xffL);
-    Buf[strlen(s) + 7] = (unsigned char)(calc_time >> 8 & 0xffL);
-    Buf[strlen(s) + 8] = (unsigned char)(calc_time & 0xffL);
     internal.flush();
     internal.position(quatPos);
     if (!internal.writeChunk(Buf)) { // length is left over from last readChunkData
@@ -417,13 +411,12 @@ int GetNextName(char* nowname, char* namewop, size_t maxNameSize) {
     }
     strncpy_s(onlyname, sizeof(onlyname), pathendp + 1, 256);
     {
-        LexicallyScopedFile f(nowname, "r");
-        if (!f.isOpen()) {
+        LexicallyScopedFile testName(nowname, "r");
+        if (!testName.isOpen()) {
             if (namewop != nullptr) {
                 strncpy_s(namewop, maxNameSize, onlyname, strlen(onlyname));
             }
             return 0;
-            fclose(f);
         }
     }
     onlyextp = strrchr(onlyname, '.');
@@ -442,7 +435,7 @@ int GetNextName(char* nowname, char* namewop, size_t maxNameSize) {
     strncpy_s(name, sizeof(name), nowname, pathlen);
     name[pathlen] = '\0';
     sprintf_s(name, sizeof(name), "%s%s%02i%s", name, onlyname, n, onlyext);
-    for (n = 1; n <= 99 && (fopen_s(&f, name, "r"), f) != nullptr; n++) {
+    for (n = 1; n < 100 && (fopen_s(&f, name, "r"), f) != nullptr; n++) {
         fclose(f);
         strncpy_s(name, sizeof(name), nowname, pathlen);
         name[pathlen] = '\0';
@@ -457,7 +450,7 @@ int GetNextName(char* nowname, char* namewop, size_t maxNameSize) {
         return -1;
     }
     strncpy_s(nowname, maxNameSize, name, 256);
-    if (namewop != NULL) {
+    if (namewop != nullptr) {
         sprintf_s(namewop, maxNameSize, "%s%02i%s", onlyname, n - 1, onlyext);
     }
     return 0;

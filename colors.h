@@ -24,13 +24,14 @@ public:
 
     double computeWeightSum();
 
-    int pixelValue(
+    void pixelValue(
         int x1, int x2,
         int rmax, int gmax, int bmax,
         unsigned char* line,
         float* CBuf, 
         float* BBuf);
 
+    void fromArray(int nColors, const double (*colors)[3], bool wrap = false);
     void reset();
     void print();
 

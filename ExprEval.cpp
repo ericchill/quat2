@@ -1,12 +1,12 @@
 #include "ExprEval.h"
 #include <stdexcept>
 
-#define _USE_MATH_DEFINES // To get M_PI & c.
+#define _USE_MATH_DEFINES // To get M_PI &c.
 #include <math.h>
 
 
 std::unordered_map<std::string, int> EvalSymbol::_symbolMap;
-
+std::mutex EvalSymbol::_mapMutex;
 
 double signum(double x) {
     if (x < 0) {
@@ -17,6 +17,7 @@ double signum(double x) {
         return 0;
     }
 }
+
 void EvalContext::setupBasicVariables(EvalContext& ctx) {
     ctx.setVariable("pi", M_PI);
     ctx.setVariable("phi", (1 + sqrt(5)) / 2);

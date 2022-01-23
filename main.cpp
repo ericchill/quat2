@@ -22,15 +22,18 @@
 
 
 #include <stdlib.h>
+#pragma warning(push, 0)
 #include <FL/Fl.H>
 #include <FL/Fl_File_Icon.H>
+#pragma warning(pop)
 
 #include "MainWindow.h"
 #include "kernel.h"
 
 int main(int argc, char **argv) {
 	if (!initGPU(argc, argv)) {
-		std::cerr << "No GPU availables, using CPU for generation." << std::endl;
+		std::cerr << "No GPU availables, sorry." << std::endl;
+		exit(1);
 	}
 	Fl::visual(FL_DOUBLE|FL_INDEX);
 	Fl_File_Icon::load_system_icons();

@@ -12,18 +12,29 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="about.cpp" />
-    <ClCompile Include="calculat.cpp" />
     <ClCompile Include="ColorClipboard.cpp" />
     <ClCompile Include="ColorEditor.cpp" />
-    <ClCompile Include="ColorPreview.cpp" />
+    <ClCompile Include="ColorPreview.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="colors.cpp" />
     <ClCompile Include="CReplacements.cpp" />
+    <ClCompile Include="cuda_util.cpp" />
+    <ClCompile Include="CutSpec.cpp" />
+    <ClCompile Include="ExprEval.cpp" />
+    <ClCompile Include="ExprParse.cpp" />
     <ClCompile Include="files.cpp" />
+    <ClCompile Include="FractalView.cpp" />
+    <ClCompile Include="grammar.cpp">
+      <ShowIncludes Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ShowIncludes>
+      <PreprocessToFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</PreprocessToFile>
+      <PreprocessSuppressLineNumbers Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</PreprocessSuppressLineNumbers>
+    </ClCompile>
     <ClCompile Include="ImageWid.cpp" />
     <ClCompile Include="IntersecEditor.cpp" />
-    <ClCompile Include="iter.cpp" />
     <ClCompile Include="json.cpp" />
     <ClCompile Include="JuliaPreview.cpp" />
+    <ClCompile Include="LineCalculator.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MainWindow.cpp" />
     <ClCompile Include="MandelPreview.cpp" />
@@ -37,29 +48,36 @@
     <ClCompile Include="quat.cpp" />
     <ClCompile Include="quatfiles.cpp" />
     <ClCompile Include="ScrollWid.cpp" />
-    <ClCompile Include="ver.cpp" />
+    <ClCompile Include="ComputeWorker.cpp" />
     <ClCompile Include="ViewEditor.cpp" />
     <ClCompile Include="ViewSelector.cpp" />
     <ClCompile Include="WriteIni.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="about.h" />
-    <ClInclude Include="calculat.h" />
     <ClInclude Include="ChildWindow.h" />
     <ClInclude Include="ColorClipboard.h" />
     <ClInclude Include="ColorEditor.h" />
     <ClInclude Include="ColorPreview.h" />
     <ClInclude Include="colors.h" />
     <ClInclude Include="common.h" />
+    <ClInclude Include="ComputeWorker.h" />
     <ClInclude Include="CReplacements.h" />
+    <ClInclude Include="cuda_util.h" />
+    <ClInclude Include="CutSpec.h" />
     <ClInclude Include="dragWindow.h" />
+    <ClInclude Include="ExprEval.h" />
     <ClInclude Include="files.h" />
+    <ClInclude Include="FractalView.h" />
+    <ClInclude Include="grammar.h" />
     <ClInclude Include="kernel.h" />
     <ClInclude Include="ImageWid.h" />
     <ClInclude Include="IntersecEditor.h" />
     <ClInclude Include="iter.h" />
     <ClInclude Include="json.h" />
     <ClInclude Include="JuliaPreview.h" />
+    <ClInclude Include="ExprParse.h" />
+    <ClInclude Include="LineCalculator.h" />
     <ClInclude Include="MainWindow.h" />
     <ClInclude Include="MandelPreview.h" />
     <ClInclude Include="memory.h" />
@@ -74,14 +92,20 @@
     <ClInclude Include="quatfiles.h" />
     <ClInclude Include="resources.h" />
     <ClInclude Include="ScrollWid.h" />
-    <ClInclude Include="ver.h" />
     <ClInclude Include="ViewEditor.h" />
     <ClInclude Include="ViewSelector.h" />
     <ClInclude Include="WriteIni.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include=".editorconfig" />
     <None Include="about.fl" />
+    <None Include="ClassDiagram.cd" />
+    <None Include="ClassDiagram1.cd" />
+    <None Include="ClassDiagram2.cd" />
+    <None Include="ClassDiagram3.cd" />
+    <None Include="ClassDiagram4.cd" />
     <None Include="ColorEditor.fl" />
+    <None Include="grammar.y" />
     <None Include="icon.xpm" />
     <None Include="IntersecEditor.fl" />
     <None Include="ObjectEditor.fl" />
@@ -115,7 +139,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 11.4.props" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 11.5.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -127,19 +151,28 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <CopyCppRuntimeToOutputDir>true</CopyCppRuntimeToOutputDir>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;WIN64;_DEBUG;_CONSOLE;GUI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>D:\Programming\NVIDIA\common\inc;D:\include\boost-1_77;D:\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\include\fltk138;D:\Programming\NVIDIA\common\inc;D:\include\boost-1_77;D:\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <AdditionalDependencies>libboost_json-vc142-mt-gd-x64-1_77.lib;fltk.lib;fltkforms.lib;fltkimages.lib;fltkjpeg.lib;fltkpng.lib;fltkzlib.lib;fltkgl.lib;cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>D:\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\libcxx2020\fltk138debug;D:\libcxx2020;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <Profile>true</Profile>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
@@ -147,17 +180,22 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>GUI;WIN32;WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>D:\Programming\NVIDIA\common\inc;D:\include\boost-1_77;D:\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <AdditionalIncludeDirectories>D:\Programming\quat2\accessories;D:\include\fltk137;D:\Programming\NVIDIA\common\inc;D:\include\boost-1_77;D:\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <AdditionalOptions>/Zo %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -165,7 +203,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <SubSystem>Console</SubSystem>
       <AdditionalDependencies>cudart_static.lib;kernel32.lib;zlib.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;fltk.lib;fltkgl.lib;fltkjpeg.lib;fltkpng.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>D:\libcxx2020;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\libcxx2020\fltk137;D:\libcxx2020;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
@@ -173,6 +211,6 @@
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 11.4.targets" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 11.5.targets" />
   </ImportGroup>
 </Project>

@@ -22,7 +22,9 @@
 
 
 #include "PixWid.h"
+#pragma warning(push, 0)
 #include <FL/fl_draw.H>
+#pragma warning(pop)
 
 constexpr unsigned long PixWid::TYPE = 0x0a0b0d0d;
 

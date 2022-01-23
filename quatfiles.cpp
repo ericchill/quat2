@@ -32,25 +32,25 @@
 #include "files.h"
 #include "quatfiles.h"
 #include "iter.h"
-#include "calculat.h"
-#include "ver.h"
 #include "memory.h"
+#include "ExprEval.h"
+#include "quat.h"
 
-
-int CopyIDAT(bool copy,
+int CopyIDAT(
+    Quater& quatDriver,
+    bool copy,
     PNGFile* i,
     PNGFile* i2,
     int ystart,
-    ZFlag zflag,
-    int zres,
-    LinePutter& lineDst)
+    ZFlag zflag)
     /* "copy" decides whether a new IDAT chunk is written */
 {
-
-    LexicallyScopedPtr<unsigned char> lineBuf = new unsigned char[i->width() * 3 + 1];
+    LexicallyScopedPtr<uint8_t> lineBuf = new uint8_t[i->width() * 3 + 1];
 
     while (!(i->checkChunkType(image_data_label) || i->checkChunkType(image_end_label))) {
-        i->getNextChunk();
+        if (!i->getNextChunk()) {
+            return -1;
+        }
     }
     if (i->checkChunkType(image_end_label)) {
         return -1; /* No IDAT chunk found */
@@ -63,21 +63,20 @@ int CopyIDAT(bool copy,
             i2->writePNGLine(lineBuf);
         }
 
-        lineDst.putLine(0L, i->width() - 1, i->width(), j, &lineBuf[1], zflag != ZFlag::NewImage);
-        check_event();
-        /*eol(j+1);*/
+        quatDriver.putLine(0L, i->width() - 1, i->width(), j, &lineBuf[1], zflag != ZFlag::NewImage);
+        quatDriver.checkEvent();
     }
     return 0;
 }
 
 
 int CalculatePNG(
+    Quater& quatDriver,
     std::ostream& errorMsg,
     const char* pngf1,
     const char* pngf2,
     const char* ini,
-    ZFlag zflag,
-    LinePutter& lineDst)
+    ZFlag zflag)
     /* shouldCalculateZBuffer(zflag): */
     /* pngf1 ... filename to read from */
     /* pngf2 ... filename to create ("" if no name available) */
@@ -88,12 +87,13 @@ int CalculatePNG(
 {
     ViewBasis rbase, srbase, lbase, slbase, cbase;
     FractalPreferences fractal;
-    int xadd, yadd, xstart, ystart;
+    int ystart;
     FILE* png2;
     png_info_struct png_info1;
     PNGFile png_internal2;
     int i;
-    char pngfile1[256], pngfile2[256], ready;
+    char pngfile1[256], pngfile2[256];
+    bool ready;
     int ys;
 
     strcpy_s(pngfile1, sizeof(pngfile1), pngf1);
@@ -111,7 +111,7 @@ int CalculatePNG(
     }
     try {
         PNGFile png_internal1(png1, &png_info1);
-        i = ReadParameters(errorMsg, &xstart, &ystart, png_internal1, fractal);
+        i = ReadParameters(errorMsg, &ystart, png_internal1, fractal);
         if (i < 0 && i > -128) {
             return -1;
         }
@@ -120,9 +120,9 @@ int CalculatePNG(
             return -1;
         } else if (ystart == fractal.view()._yres) {
             errorMsg << "Calculation of image '" << pngfile1 << "' was complete." << std::endl;
-            ready = 1;
+            ready = true;
         } else {
-            ready = 0;
+            ready = false;
         }
 
         if (!ready && strlen(pngfile2) == 0) {
@@ -135,14 +135,6 @@ int CalculatePNG(
             if (0 != i) {
                 return -1;
             }
-        }
-
-        std::stringstream nestedErrorMsg;
-        if (TranslateColorFormula(nestedErrorMsg, fractal.colorScheme().get()) != 0) {
-            errorMsg << "Strange error:" << std::endl << "PNG file '" << pngfile1 << "' :" << std::endl;
-            errorMsg << "Error in color scheme formula : " << std::endl;
-            errorMsg <<  nestedErrorMsg.str();
-            return -1;
         }
 
         if (fractal.view().calcbase(&cbase, &srbase, WhichEye::Monocular) != 0) {
@@ -161,10 +153,7 @@ int CalculatePNG(
             }
         }
 
-        if (InitGraphics(errorMsg, fractal, ready,
-            &xadd, &yadd, zflag != ZFlag::NewImage) != 0) {
-            return -1;
-        }
+        InitGraphics(quatDriver, errorMsg, fractal, zflag != ZFlag::NewImage);
 
         ys = ystart;
         if (shouldCalculateImage(zflag)) {
@@ -172,40 +161,41 @@ int CalculatePNG(
         }
 
         if (ZFlag::ImageFromZBuffer == zflag) {
-            if (writeQuatPNGHead(pngfile2, &png2, png_internal2, 0, 0, 0L, fractal, zflag)) {
+            if (writeQuatPNGHead(pngfile2, &png2, png_internal2, 0, 0, fractal, zflag)) {
                 errorMsg << "Could not create file '" << pngfile2 << "'" << std::endl;
                 return -1;
             }
             errorMsg << "Created new file '" << pngfile2 << "'" << std::endl;
             ystart = 0;
-            xstart = 0;
         }
 
         if (!ready) {
-            if (writeQuatPNGHead(pngfile2, &png2, png_internal2, 0, 0, 0L, fractal, zflag)) {
+            if (writeQuatPNGHead(pngfile2, &png2, png_internal2, 0, 0, fractal, zflag)) {
                 errorMsg << "Could not create file '" << pngfile2 << "'" << std::endl;
                 return -1;
             }
-            CopyIDAT(true, &png_internal1, &png_internal2, ys, zflag, fractal.view()._zres, lineDst);
+            CopyIDAT(quatDriver, true, &png_internal1, &png_internal2, ys, zflag);
             errorMsg << "Created new file '" << pngfile2 << "'" << std::endl;
         } else {
             if (ZFlag::NewImage == zflag) {
-                CopyIDAT(false, &png_internal1, &png_internal2, ys, zflag, fractal.view()._zres, lineDst);
+                CopyIDAT(quatDriver, false, &png_internal1, &png_internal2, ys, zflag);
             } else {
-                CopyIDAT(false, &png_internal1, &png_internal2, ys, ZFlag::NewZBuffer, fractal.view()._zres, lineDst);
+                CopyIDAT(quatDriver, false, &png_internal1, &png_internal2, ys, ZFlag::NewZBuffer);
             }
             if (shouldCalculateDepths(zflag)) {
-                Done();
+                quatDriver.done();
             }
         }
 
         i = 0;
         if (!ready || ZFlag::ImageFromZBuffer == zflag) {
-            i = CalculateFractal(errorMsg, pngfile2, &png2,
+            i = CalculateFractal(
+                quatDriver,
+                errorMsg, pngfile2, &png2,
                 &png_internal2,
-                zflag, &xstart, &ystart,
-                &rbase, &srbase, &lbase, &slbase, fractal,
-                lineDst);
+                zflag,
+                &ystart,
+                rbase, srbase, lbase, slbase, fractal);
         }
     } catch (PNGException&) {
         errorMsg << "File '" << pngfile1 << "' is not a valid png-file." << std::endl;
@@ -227,20 +217,18 @@ int ParseINI(
    it initializes graphics and shows image data line per line
 */
 int ReadParametersAndImage(
+    Quater& quatDriver,
     std::ostream& errorMsg,
     const char* pngf,
     bool* ready,
-    int* xstart,
     int* ystart,
     FractalPreferences& fractal,
-    ZFlag zflag,
-    LinePutter& lineDst) {
+    ZFlag zflag) {
 
     png_info_struct png_info;
-    int xadd, yadd, i, xres, yr;
+    int i, xres, yr;
     ViewBasis base, sbase;
     char pngfile[256];
-    char errString[256];
 
     strcpy_s(pngfile, sizeof(pngfile), pngf);
     ConvertPath(pngfile);
@@ -248,13 +236,14 @@ int ReadParametersAndImage(
     /* Do PNG-Init for loading */
     LexicallyScopedFile png(pngfile, "rb");
     if (!png.isOpen()) {
+        char errString[256];
         strerror_s(errString, sizeof(errString), png.error());
         errorMsg << "Can't open \"" << pngfile << "\" for reading: " << errString << std::endl;
         return -1;
     }
     try {
         PNGFile png_internal(png, &png_info);
-        i = ReadParameters(errorMsg, xstart, ystart, png_internal, fractal);
+        i = ReadParameters(errorMsg, ystart, png_internal, fractal);
         /* if (i == -128) sprintf_s(Error, maxErrorLen, "Warning: File version higher than %s.\n",PROGVERSION); */
         if (i < 0 && i > -128) {
             return -1;
@@ -271,17 +260,12 @@ int ReadParametersAndImage(
         if (ZFlag::NewZBuffer == zflag) {
             xres *= fractal.view()._antialiasing;
         }
-        LexicallyScopedPtr<unsigned char> line = new unsigned char[xres * 3 + 1];
-        if (InitGraphics(errorMsg, fractal, *ready,
-            &xadd, &yadd, zflag != ZFlag::NewImage) != 0) {
-            return -1;
-        }
+        InitGraphics(quatDriver, errorMsg, fractal, zflag != ZFlag::NewImage);
         yr = *ystart;
         if (ZFlag::NewZBuffer == zflag) {
             yr *= fractal.view()._antialiasing;
         }
-        if (CopyIDAT(false, &png_internal, NULL, yr,
-            zflag, fractal.view()._zres, lineDst) != 0) {
+        if (CopyIDAT(quatDriver, false, &png_internal, nullptr, yr, zflag) != 0) {
             errorMsg << "Error reading file '" << pngfile << "'.";
             return -1;
         }
@@ -294,11 +278,11 @@ int ReadParametersAndImage(
 
 
 int SavePNG(
+    Quater& quatDriver,
     std::ostream& errorMsg,
     const char* pngf,
     int xstart,
     int ystart,
-    disppal_struct* disppal,
     const FractalPreferences& fractal,
     ZFlag zflag) {
 
@@ -333,7 +317,7 @@ int SavePNG(
     PNGFile png_internal;
     if (writeQuatPNGHead(
         pngfile, &png, png_internal,
-        xstart, ystart, static_cast<int>(calc_time),
+        xstart, ystart,
         fractal,
         zflag)) {
         errorMsg << "Error writing file '" << pngfile << "' in PNGInitialization" << std::endl;
@@ -341,7 +325,7 @@ int SavePNG(
     }
 
     for (i = 0; i < yres; i++) {
-        QU_getline(&line[1], i, xres, zflag);
+        quatDriver.getline(&line[1], i, xres, zflag);
         line[0] = 0; /* Set filter method */
         png_internal.doFiltering(line);
         if (png_internal.writePNGLine(line)) {
@@ -365,7 +349,7 @@ int BuildName(std::ostream& errorMsg, char* name, char* namewop, size_t maxNameL
 
     strncpy_s(name, maxNameLen, file, 256);
     char* c = strrchr(name, '.');
-    if (c != NULL) {
+    if (c != nullptr) {
         strcpy_s(c, maxNameLen - (c - name), ext);
     } else {
         strcat_s(name, maxNameLen, ext);
@@ -381,7 +365,7 @@ int BuildName(std::ostream& errorMsg, char* name, char* namewop, size_t maxNameL
 int CleanNumberString(char* s, size_t maxLen) {
     size_t i;
 
-    if (strrchr(s, '.') != NULL) {
+    if (strrchr(s, '.') != nullptr) {
         i = strlen(s) - 1;
         while (s[i] == '0') {
             i--;
@@ -403,7 +387,7 @@ int ReadParametersPNG(
     FractalPreferences& fractal) {
 
     png_info_struct png_info;
-    int xstart, ystart;
+    int ystart;
     int i;
     ViewBasis base, sbase;
     char file[256];
@@ -420,7 +404,7 @@ int ReadParametersPNG(
     }
     try {
         PNGFile png_internal(png, &png_info);
-        i = ReadParameters(errorMsg, &xstart, &ystart, png_internal, fractal);
+        i = ReadParameters(errorMsg, &ystart, png_internal, fractal);
         if (i < 0 && i > -128) {
             return -1;
         }
@@ -436,17 +420,12 @@ int ReadParametersPNG(
     return 0;
 }
 
-constexpr size_t numBufSize = 30;
-
-static void formatDouble(char* buf, double num) {
-    sprintf_s(buf, numBufSize, "%.15f", num);
-    CleanNumberString(buf, numBufSize);
-}
 
 int WriteINI(
     std::ostream& errorMsg,
     const char* fil,
-    const FractalPreferences& fractal) {
+    const FractalPreferences& fractal,
+    int saveChoices) {
 
     char file[256];
 
@@ -460,7 +439,7 @@ int WriteINI(
         return -1;
     }
     txt << "# This file was generated by '" << PROGNAME << " " << PROGNAME << "'" << std::endl << std::endl;
-    json::value jsonForm = fractal.toJSON();
+    json::value jsonForm = fractal.toJSON(saveChoices);
     std::string indent("    ");
     pretty_print(txt, jsonForm, &indent);
     txt << std::endl;
@@ -485,10 +464,10 @@ int GetParameters(std::ostream& errorMsg, const char* afile) {
         return -1;
     }
 
-    if (BuildName(errorMsg, ini, NULL, sizeof(ini), ".ini", filewop)) {
+    if (BuildName(errorMsg, ini, nullptr, sizeof(ini), ".ini", filewop)) {
         return -1;
     }
-    if (0 == WriteINI(errorMsg, ini, fractal)) {
+    if (0 == WriteINI(errorMsg, ini, fractal, PS_ALL)) {
         errorMsg << "Generated file '" << ini << "'.";
     } else {
         return -1;
@@ -496,7 +475,7 @@ int GetParameters(std::ostream& errorMsg, const char* afile) {
     return 0;
 }
 
-int ImgFromZBuf(std::ostream& errorMsg, const char* file, const char* file2, LinePutter& lineDst)
+int ImgFromZBuf(Quater& quatDriver, std::ostream& errorMsg, const char* file, const char* file2)
 /* filename is a ZBuffer, which gets turned into an image */
 /* called by command-line versions (non-Windows), which are given just a filename */
 {
@@ -514,10 +493,10 @@ int ImgFromZBuf(std::ostream& errorMsg, const char* file, const char* file2, Lin
     } else {
         strcpy_s(s, sizeof(s), ".png");
     }
-    if (GetNextName(pngfile, NULL, sizeof(pngfile)) != 0) {
+    if (GetNextName(pngfile, nullptr, sizeof(pngfile)) != 0) {
         errorMsg << "Couldn't find a free filename based on '" << pngfile << "'." << std::endl;
         return -1;
     }
 
-    return CalculatePNG(errorMsg, zpnfile, pngfile, file2, ZFlag::ImageFromZBuffer, lineDst);
+    return CalculatePNG(quatDriver, errorMsg, zpnfile, pngfile, file2, ZFlag::ImageFromZBuffer);
 }

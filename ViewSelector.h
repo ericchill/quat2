@@ -1,7 +1,10 @@
 #pragma once
 
+#pragma warning(push, 0)
 #include <FL/Fl_Double_Window.H>
 #include <FL/Fl_Value_Input.H>
+#pragma warning(pop)
+
 #include "common.h"
 
 #include "parameters.h"

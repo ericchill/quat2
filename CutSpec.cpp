@@ -53,9 +53,14 @@ bool CutSpec::addPlane(const Vec3& normal, const Vec3& point) {
 
 bool CutSpec::deletePlane(size_t i) {
     if (i < _count) {
-        for (size_t j = i; j < _count - 1; j++) {
-            _normal[j] = _normal[j + 1];
-            _point[j] = _point[j + 1];
+        if (1 == _count) {
+            _normal[0] = 0.0;
+            _point[0] = 0.0;
+        } else {
+            for (size_t j = i; j < _count - 1; j++) {
+                _normal[j] = _normal[j + 1];
+                _point[j] = _point[j + 1];
+            }
         }
         _count--;
         return true;
@@ -63,7 +68,7 @@ bool CutSpec::deletePlane(size_t i) {
     return false;
 }
 
-bool CutSpec::cutaway(const Vec3 x) const {
+bool CutSpec::cutaway(const Vec3& x) const {
     for (unsigned i = 0; i < _count; i++) {
         Vec3 y = x - _point[i];
         if (_normal[i].dot(y) > 0) {
@@ -75,10 +80,12 @@ bool CutSpec::cutaway(const Vec3 x) const {
 
 bool CutSpec::cutnorm(const Quat& x1, const Quat& x2, Quat& nq) const {
     Vec3 n;
+    Vec3 vx1(x1);
+    Vec3 vx2(x2);
 
     for (size_t i = 0; i < _count; i++) {
-        Vec3 y1 = Vec3(x1) - _point[i];
-        Quat y2 = Vec3(x2) - _point[i];
+        Vec3 y1 = vx1 - _point[i];
+        Vec3 y2 = vx2 - _point[i];
         int sign1 = (_normal[i].dot(y1) > 0) ? 1 : -1;
         int sign2 = (_normal[i].dot(y2) > 0) ? 1 : -1;
         if (sign1 != sign2) {

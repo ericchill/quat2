@@ -1,37 +1,38 @@
-#ifndef IMAGEWID_H
-#define IMAGEWID_H
+#pragma once
 
-#include <cstring>
+#include "common.h"
+
+#pragma warning(push, 0)
 #include <FL/fl_draw.H>
 #include <FL/Fl_Widget.H>
+#pragma warning(pop)
+
+#include <cstring>
+#include <map>
 
 class ImageWid : public Fl_Widget
 {
 public:
 	ImageWid(int x, int y, int w, int h, const char *label = 0);
 	virtual ~ImageWid();
+#if 0
 	bool newImage(int w, int h);
+#endif
 	bool valid() const { return _data != 0; }
 	void gray(int level);
 	void white();
 	void fill(Fl_Color& col);
-	void set_pixel(int x, int y, unsigned char r, unsigned char g, unsigned char b);
-	void set_area(int x1, int x2, int y, unsigned char *d);
-	void set_line(int n, unsigned char *d);
-	void get_line(int n, unsigned char *d) const;
-//	unsigned char *line(int n) const;
-	unsigned long type() const { return _type; }
-	static const unsigned long TYPE;
+	void set_pixel(int x, int y, uint8_t r, uint8_t g, uint8_t b);
+	void set_line_segment(int x1, int x2, int y, uint8_t *d);
+	void set_line(int n, uint8_t *d);
+	void get_line(int n, uint8_t *d) const;
+
+	unsigned long type() const { return 0x0a0b0c0d; }
 protected:
 	void size(int, int) {}
 	virtual void draw();
 	virtual int handle(int);
-//	void _damage(int x, int y, int w, int h);
 private:
-	unsigned char *_data;
-//	int _damage_x, _damage_y, _damage_w, _damage_h;
-//	bool _damaged;
-	const unsigned long _type;
+	uint8_t *_data;
+	bool* _lineDrawn;
 };
-
-#endif

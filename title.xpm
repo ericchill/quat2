@@ -2,7 +2,7 @@
 #ifndef XPMCONST		  
 #define XPMCONST      		  
 #endif		        	  
-static XPMCONST char const * title[] = {
+static XPMCONST char const * titlePixmap[] = {
 "308 256 265 2",
 "  	c None",
 ". 	c #040204",

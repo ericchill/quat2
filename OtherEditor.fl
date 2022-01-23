@@ -28,9 +28,6 @@ decl {// Quat - A 3D fractal generation program
 decl {\#include "CReplacements.h"} {private local
 }
 
-decl {//\#include <cstring>} {private local
-}
-
 decl {\#include "ChildWindow.h"} {private local
 }
 
@@ -92,19 +89,19 @@ checkValidity();}
       }
       Fl_Value_Input phongmax {
         label {max.}
-        callback {_view._phongmax = o->value();
+        callback {_view._phongmax = static_cast<float>(o->value());
 checkValidity();}
         tooltip {Maximum brightness of the highlight.} xywh {20 125 100 20} labelsize 12 align 5 textsize 12
       }
       Fl_Value_Input phongsharp {
         label sharp
-        callback {_view._phongsharp = o->value();
+        callback {_view._phongsharp = static_cast<float>(o->value());
 checkValidity();}
         tooltip {Describes how fast the highlight will fade into usual light.} xywh {140 125 100 20} labelsize 12 align 5 maximum 1e+20 textsize 12
       }
       Fl_Value_Input ambient {
         label {Ambient Light}
-        callback {_view._ambient = o->value();
+        callback {_view._ambient = static_cast<float>(o->value());
 checkValidity();}
         tooltip {The brightness that is even in shadowed parts of the object.} xywh {20 180 100 20} labelsize 12 align 5 maximum 1e+20 textsize 12
       }
@@ -166,8 +163,7 @@ zres->do_callback();}
         }
       }
     }
-    code {//memset(&view, 0, sizeof(view));
-end(); // VERY IMPORTANT!
+    code {end(); // VERY IMPORTANT!
 win->position(X+2, Y+2);
 // DON'T delete win in destructor (or elsewhere) 
 // it's automatically deleted by Fl_Group} {}
@@ -180,8 +176,7 @@ _vs[2] = vsf;} {}
   }
   Function {set(const FractalView& v)} {open return_type void
   } {
-    code {for (int i=0; i<3; i++) assert(_vs[i] != 0);
-_view = v;
+    code {_view = v;
 xres->value(v._xres);
 yres->value(v._yres);
 zres->value(v._zres);
@@ -205,7 +200,8 @@ v._zres = static_cast<int>(_view._zres);
 v._phongmax = _view._phongmax;
 v._phongsharp = _view._phongsharp;
 v._ambient = _view._ambient; 
-v._antialiasing = static_cast<int>(_view._antialiasing);} {}
+v._antialiasing = static_cast<int>(_view._antialiasing);} {selected
+    }
   }
   Function {checkValidity()} {open return_type void
   } {
@@ -238,8 +234,7 @@ if (zres->color() != zres_c) { zres->color(zres_c); zres->redraw(); }
 if (phongmax->color() != pm_c) { phongmax->color(pm_c); phongmax->redraw(); }
 if (phongsharp->color() != ps_c) { phongsharp->color(ps_c); phongsharp->redraw(); }
 if (ambient->color() != amb_c) { ambient->color(amb_c); ambient->redraw(); }
-if (antialiasing->color() != ant_c) { antialiasing->color(ant_c); antialiasing->redraw(); }} {selected
-    }
+if (antialiasing->color() != ant_c) { antialiasing->color(ant_c); antialiasing->redraw(); }} {}
   }
   decl {FractalView _view;} {private local
   }

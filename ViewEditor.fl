@@ -49,7 +49,7 @@ decl {\#include "CReplacements.h"} {private local
 decl {\#include "ParameterEditor.h"} {private local
 }
 
-decl {class ParameterEditor;} {selected public global
+decl {class ParameterEditor;} {public global
 }
 
 class ViewEditor {open : {public Fl_Group}
@@ -167,7 +167,7 @@ checkValidity();}
       } {
         Fl_Value_Input ocular_dist {
           label Distance
-          callback {_view._interocular = o->value();
+          callback {_view._interocular = static_cast<float>(o->value());
 ocular_angle->value(newangle());
 checkValidity();}
           tooltip {Distance (in QSpace) between the two eyes. If nonzero, you'll get a stereo image.} xywh {165 135 90 20} labelsize 12 align 5 maximum 1e+20 textsize 12
@@ -317,9 +317,10 @@ v._Mov[1] = _view._Mov[1];} {}
         return atan(_view._interocular / (2.0 * a)) * 360.0 / M_PI;
     }} {}
   }
-  Function {newdist()} {open return_type double
+  Function {newdist()} {open return_type float
   } {
-    code {return 2.0 * _view._s.magnitude() * tan(M_PI * ocular_angle->value() / 360.0);} {}
+    code {return static_cast<float>(2.0 * _view._s.magnitude() * tan(M_PI * ocular_angle->value() / 360.0));} {selected
+    }
   }
   Function {checkValidity()} {open return_type void
   } {

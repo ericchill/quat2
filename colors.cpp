@@ -24,12 +24,13 @@
 #include <math.h>   /* sqrt */
 #include <stdlib.h> /* labs */
 #include <algorithm>
+#include <type_traits>
 #include "common.h"
 
 #include "colors.h"
 
 
-int dimAndGammaTrueColor(double RR, double GG, double BB,
+void dimAndGammaTrueColor(double RR, double GG, double BB,
     double* R, double* G, double* B,
     double rgam, double ggam, double bgam,
     double bright) {
@@ -50,7 +51,6 @@ int dimAndGammaTrueColor(double RR, double GG, double BB,
         *G = pow(bright * GG, ggam);
         *B = pow(bright * BB, bgam);
     }
-    return 0;
 }
 
 
@@ -84,15 +84,59 @@ RealPalette::RealPalette(const RealPalette& r) {
     _weightSum = r._weightSum;
 }
 
+void RealPalette::fromArray(int nColors, const double(*colors)[3], bool wrap) {
+    if (1 == nColors) {
+        for (int i = 0; i < 3; i) {
+            _cols[0].col1[i] = _cols[0].col2[i] = colors[0][i];
+        }
+    } else {
+        for (int i = 0; i < nColors-1; i++) {
+            for (int j = 0; j < 3; j++) {
+                _cols[i].col1[j] = colors[i][j];
+                _cols[i].col2[j] = colors[i + 1][j];
+            }
+        }
+        if (wrap) {
+            for (int j = 0; j < 3; j++) {
+                _cols[nColors-1].col1[j] = _cols[nColors - 2].col2[j];
+                _cols[nColors-1].col2[j] = _cols[0].col1[j];
+            }
+        }
+    }
+    _nColors = wrap ? nColors : nColors - 1;
+    for (int i = 0; i < _nColors; i++) {
+        _cols[i].weight = 1;
+    }
+    _weightSum = static_cast<double>(_nColors);
+}
+
+constexpr double basicRGB[][3] = {
+    { 1, 0, 0},
+    { 0, 1, 0},
+    { 0, 0, 1}
+};
+
+constexpr double bigRainbow[][3] = {
+    { 1, 0, 0},
+    { 1, 0.5, 0},
+    { 1, 1, 0},
+
+    { 0.5, 1, 0},
+    { 0, 1, 0},
+    { 0, 1, 0.5 },
+
+    { 0, 1, 1 },
+    { 0, 0.5, 1},
+    { 0, 0, 1},
+
+    { 0.5, 0, 1},
+    { 1, 0, 1},
+    { 1, 0, 0.5}
+};
+
+
 void RealPalette::reset() {
-    _cols[0].col1[0] = 0;
-    _cols[0].col1[1] = 0;
-    _cols[0].col1[2] = 1;
-    _cols[0].col2[0] = 1;
-    _cols[0].col2[1] = 0;
-    _cols[0].col2[2] = 0;
-    _cols[0].weight = 1;
-    _nColors = 1;
+    fromArray(std::extent<decltype(bigRainbow),0>::value, bigRainbow, true);
 }
 
 RealPalette::RealPalette(const json::value& jv) {
@@ -105,6 +149,7 @@ RealPalette::RealPalette(const json::value& jv) {
     _nColors = colors.size();
 
 }
+
 json::value RealPalette::toJSON() const {
     json::array colors;
     for (size_t i = 0; i < _nColors; i++) {
@@ -148,7 +193,7 @@ void RealPalette::getTrueColor(
     *b = nc * (_cols[i].col2[2] - _cols[i].col1[2]) + _cols[i].col1[2];
 }
 
-int RealPalette::pixelValue(
+void RealPalette::pixelValue(
     int x1, int x2,
     int rmax, int gmax, int bmax,
     unsigned char* line,
@@ -156,15 +201,15 @@ int RealPalette::pixelValue(
     float* bBuf) {
     int i;
     double r, g, b;
-    int ir, ig, ib;
+    uint8_t ir, ig, ib;
 
-    for (i = x1; i <= x2; i++) {
+    for (i = x1; i < x2; i++) {
         if (bBuf[i] > 0.0001) {
             getTrueColor(cBuf[i], &r, &g, &b);
             dimAndGammaTrueColor(r, g, b, &r, &g, &b, GAMMA, GAMMA, GAMMA, bBuf[i]);
-            ir = static_cast<int>(floor(r * (float)rmax));
-            ig = static_cast<int>(floor(g * (float)gmax));
-            ib = static_cast<int>(floor(b * (float)bmax));
+            ir = static_cast<uint8_t>(floor(r * (float)rmax));
+            ig = static_cast<uint8_t>(floor(g * (float)gmax));
+            ib = static_cast<uint8_t>(floor(b * (float)bmax));
             line[3 * i] = ir;
             line[3 * i + 1] = ig;
             line[3 * i + 2] = ib;
@@ -174,7 +219,6 @@ int RealPalette::pixelValue(
             line[3 * i + 2] = 0;
         }
     }
-    return 0;
 }
 
 

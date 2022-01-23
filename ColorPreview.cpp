@@ -23,11 +23,13 @@
 #include <cstdio>
 #include <cstring>
 
+#pragma warning(push, 0)
 #include <FL/Fl.H>
 #include <FL/fl_draw.H>
 #include <FL/Fl_Button.H>
 #include <FL/Fl_Value_Input.H>
 #include <FL/Fl_Output.H>
+#pragma warning(pop)
 
 #include "ColorPreview.h"
 #include "colors.h"
@@ -200,7 +202,7 @@ void ColorPreview::Update() {
 		BBuf = 1.0f;
 	    for (int i = 0; i < w() - 2 * h(); i++) {
 		    CBuf = static_cast<float>(i)/static_cast<float>(w()-2*h());
-		    _pal.pixelValue(0, 0, 255, 255, 255, &col[0], &CBuf, &BBuf);
+		    _pal.pixelValue(0, 1, 255, 255, 255, &col[0], &CBuf, &BBuf);
 		    for (int j = 0; j < h(); j++) {
 				int idx = 3 * (i + j * (w() - 2 * h()));
 			    _pixmap[idx] = col[0];

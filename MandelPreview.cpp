@@ -24,13 +24,11 @@
 #include <cstring>	// memset
 #include <iostream>
 
-#ifndef NO_NAMESPACE
-//using namespace std;
-#endif
-
+#pragma warning(push, 0)
 #include <FL/fl_draw.H>
 #include <FL/Fl_Int_Input.H>
 #include <FL/Fl.H>
+#pragma warning(pop)
 
 #include "common.h"
 #include "memory.h"
@@ -38,7 +36,7 @@
 #include "MandelPreview.h"
 #include "CReplacements.h"
 
-#define for4 for(int i=0; i<4; i++)
+//#define for4 for(int i=0; i<4; i++)
 
 MandelPreview::MandelPreview(int x, int y, int w, int h, const char *label = 0)
 	: Fl_Widget(x, y, w, h, label),
@@ -135,11 +133,11 @@ int MandelPreview::handle(int event)
 				_CursorY = my - y();
 				double cre, ci;
 				Coo2C(_CursorX, _CursorY, cre, ci);
-				if (_input_cre != NULL) {
+				if (_input_cre != nullptr) {
 					_input_cre->value(cre);
 					_input_cre->do_callback(); 
 				}
-				if (_input_ci != NULL) {
+				if (_input_ci != nullptr) {
 					_input_ci->value(ci);
 					_input_ci->do_callback();
 				}
@@ -287,30 +285,26 @@ int MandelPreview::CalcMPixel(int x, int y)
 {
 	int (*iter) (struct iter_struct*);
 	static struct iter_struct is;
-	LexicallyScopedPtr<Quat> orbit = new Quat[_Maxiter+2];
 
 	is.xstart = 0;
 
 	switch (_Formula) {
 	  case 0: 
-		  iter = iterate_0_no_orbit;
+		  iter = basic_iterate_sans_orbit<Iter0Op>;
 		break;
 	  case 1:
-		  iter = iterate_1_no_orbit;
+		  iter = basic_iterate_sans_orbit<Iter1Op>;
 		  break;
 	  case 2: 
-		  iter = iterate_2_no_orbit;
+		  iter = basic_iterate_sans_orbit<Iter2Op>;
 		  is.xstart = 0.367879441;
 		  break;
 	  case 3: 
-		  iter = iterate_3_no_orbit;
+		  iter = basic_iterate_sans_orbit<Iter3Op>;
 		  break;
 	  case 4: 
-		  iter = iterate_4_no_orbit;
+		  iter = basic_iterate_sans_orbit<Iter4Op>;
 		  is.p[0] = _p[0];
-		  break;
-	  case 5:
-		  iter = iterate_bulb;
 		  break;
 	  default:
 		  throw std::invalid_argument("Invalid formula number");
@@ -321,9 +315,8 @@ int MandelPreview::CalcMPixel(int x, int y)
 	is.c[3] = _ck;
 	is.bailout = _BailoutSQR;
 	is.maxiter = _Maxiter;
-	is.maxOrbit = _Maxiter;
-	is.exactiter = 0;
-	is.orbit = &orbit[0];
+	is.maxOrbit = 0;
+	is.orbit = nullptr;
 	
 	return iter(&is) == _Maxiter ? 1 : 0;
 }

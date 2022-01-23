@@ -24,7 +24,7 @@ std::string pathname::_convert_slash(const char* c) const {
 
 void pathname::uppercase() {
 	for (size_type i = 0; i < length(); ++i) {
-		at(i) = ::toupper(at(i));
+		at(i) = static_cast<char>(::toupper(at(i)));
 	}
 }
 

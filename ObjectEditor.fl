@@ -1,5 +1,5 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0304
+version 1.0308
 header_name {.h}
 code_name {.cpp}
 decl {// Quat - A 3D fractal generation program
@@ -25,18 +25,6 @@ decl {// Quat - A 3D fractal generation program
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.} {private local
 }
 
-declblock {\#ifdef HAVE_CONFIG_H} {after {\#endif}
-} {
-  decl {\#include <config.h>} {private local
-  }
-}
-
-decl {//\#include <iostream>} {private local
-}
-
-decl {//\#include <string.h>} {private local
-}
-
 decl {\#include <cmath> // fabs} {private local
 }
 
@@ -59,6 +47,9 @@ decl {\#include "MandelPreview.h"} {private local
 }
 
 decl {class MandelPreview;} {public local
+}
+
+decl {\#pragma warning( disable : 4456 )} {private global
 }
 
 class ObjectEditor {open : {public Fl_Group}
@@ -128,10 +119,6 @@ formula_changed();}
         MenuItem {} {
           label {x[n+1] = x[n]^p1-c}
           xywh {40 40 100 20} shortcut 0x65 labelsize 12
-        }
-        MenuItem {} {
-          label {z^2+c Mandelbulb}
-          xywh {0 0 30 20} shortcut 0x66 labelsize 12
         }
       }
       Fl_Value_Input cre {
@@ -266,6 +253,7 @@ win->position(X+2, Y+2);
   } {
     code {frac = f;
 maxiter->value(f._maxiter); maxiter->do_callback();
+maxOrbit->value(f._maxOrbit); maxOrbit->do_callback();
 lvalue->value(f._lTerm); lvalue->do_callback();
 bailout->value(f._bailout); bailout->do_callback();
 formula->value(f._formula); formula->do_callback(); // Also calls formula_changed()
@@ -273,8 +261,13 @@ cre->value(f._c[0]); cre->do_callback();
 ci->value(f._c[1]); ci->do_callback();
 cj->value(f._c[2]); cj->do_callback();
 ck->value(f._c[3]); ck->do_callback();
-for (int j=0; j<4; j++) for (int i=0; i<4; i++) MP->p(j, i, f._p[j][i]);
-MP->CalcImage(); MP->CheckUpdate();} {}
+for (int j=0; j<4; j++) {
+	for (int i=0; i<4; i++) {
+		MP->p(j, i, f._p[j][i]);
+	}
+}
+MP->CalcImage(); MP->CheckUpdate();} {selected
+    }
   }
   Function {get(FractalSpec& f)} {return_type void
   } {
@@ -299,8 +292,7 @@ if (pno == 0) {
 paramscroll->scrollvalue(1,1,1,pno);
 if (pno != 0) {
 	paramscroll_changed();
-}} {selected
-    }
+}} {}
   }
   Function {paramscroll_changed()} {open return_type void
   } {

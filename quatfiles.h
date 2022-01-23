@@ -1,20 +1,16 @@
 #pragma once
 
-class FractalSpec;
-class FractalView;
-struct disppal_struct;
-class RealPalette;
+#include "parameters.h"
 
-class FractalPreferences;
-class LinePutter;
+class Quater;
 
 int CalculatePNG(
+    Quater& quatDriver,
     std::ostream& errorMsg,
     const char* pngfile1,
     const char* pngfile2,
     const char* ini,
-    ZFlag zflag,
-    LinePutter& lineDst);
+    ZFlag zflag);
 
 int ParseINI(
     std::ostream& errorMsg,
@@ -29,21 +25,20 @@ int ReadParametersPNG(
     FractalPreferences& fractal);
 
 int ReadParametersAndImage(
+    Quater& quatDriver,
     std::ostream& errorMsg,
     const char* pngfile,
     bool* ready,
-    int* xstart,
     int* ystart,
     FractalPreferences& fractal,
-    ZFlag zflag,
-    LinePutter& lineDst);
+    ZFlag zflag);
 
 int SavePNG(
+    Quater& quatDriver,
     std::ostream& errorMsg,
     const char* pngfile,
     int xstart,
     int ystart,
-    disppal_struct* disppal,
     const FractalPreferences& fractal,
     ZFlag zflag);
 
@@ -56,15 +51,24 @@ int BuildName(
     const char* ext, 
     const char* file);
 
+/* define codes for "mode" in WriteINI */
+#define PS_OBJ 1
+#define PS_VIEW 2
+#define PS_COL 4
+#define PS_OTHER 8
+#define PS_USEFILE 128
+#define PS_ALL (-1)
+
 int WriteINI(
     std::ostream& errorMsg,
     const char* file,
-    const FractalPreferences& fractal);
+    const FractalPreferences& fractal,
+    int saveChoices);
 
 int ImgFromZBuf(
+    Quater& quatDriver,
     std::ostream& errorMsg,
     const char* file,
-    const char* file2,
-    LinePutter& lineDst);
+    const char* file2);
 
 extern int CleanNumberString(char* s);

@@ -48,14 +48,12 @@ int writeQuatPNGHead(
     PNGFile& png_internal,
     int xstart,
     int ystart,
-    long calctime,
     const FractalPreferences& fractal,
     ZFlag zflag);
 
 /* returns external format, reads internal from PNG */
 int ReadParameters(
     std::ostream& errorMsg,
-    int* xstart,
     int* ystart,
     PNGFile& internal,
     FractalPreferences& fractal);

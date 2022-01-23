@@ -3,10 +3,6 @@
 
 #include <sstream>
 
-#ifndef NO_NAMESPACE
-//using namespace std;
-#endif
-
 #include "common.h"
 #include "parameters.h"
 
@@ -22,27 +18,27 @@ class Fl_Menu_Bar;
 class PixWid;
 class Fl_Help_Dialog;
 
-class MainWindow : public LinePutter {
+class MainWindow : public Quater {
 public:
 
     static MainWindow* mainWindowPtr;
 
     MainWindow(int argc, char** argv, int x = 308, int y = 296, const char* label = PROGNAME);
     ~MainWindow();
+
     bool shown() const;
 
-    static int FLTK_Initialize(std::ostream& errorMsg, int x, int y);
-    static int FLTK_Done();
-    static int FLTK_getline(unsigned char* line, int y, long xres, ZFlag whichbuf);
-    static int FLTK_check_event();
-    static int FLTK_Change_Name(const char* s);
+    void initialize(std::ostream& errorMsg, int x, int y);
+    void getline(unsigned char* line, int y, long xres, ZFlag whichbuf);
+    bool checkEvent();
+    void changeName(const char* s);
     static void FLTK_Debug(const char* s);
 
     ZFlag _zflag;
     void eol(int line);
     void FLTK_eol_4(int line);
 
-    int putLine(long x1, long x2, long xres, int y, unsigned char* Buf, bool useZBuf);
+    void putLine(long x1, long x2, long xres, int y, unsigned char* Buf, bool useZBuf);
 
     void Image_Open();
     void Image_Close();
@@ -57,7 +53,7 @@ public:
     void Parameters_Reset();
     bool Parameters_ReadINI(
         FractalPreferences&,
-        const char* fn = NULL);
+        const char* fn = nullptr);
     bool Parameters_ReadPNG(
         FractalPreferences&,
         bool zbuf);
@@ -66,8 +62,6 @@ public:
     void ZBuffer_Close();
     void ZBuffer_SaveAs();
     void Help_Manual();
-    FractalPreferences _fractal;
-    bool auto_resize;
 private:
     void MakeTitle();
     void DoImgOpen(const char* givenfile, ZFlag zflag);
@@ -92,24 +86,27 @@ private:
     static void ZBuffer_Close_cb(Fl_Widget*, void*);
     static void ZBuffer_SaveAs_cb(Fl_Widget*, void*);
     static void Help_Manual_cb(Fl_Widget*, void*);
-    int minsizeX, minsizeY;
-    int imgxstart, imgystart, zbufxstart, zbufystart;
-    bool stop;
+
     void menuItemEnabled(int, bool);
     void update();
-    bool ImgInMem, ZBufInMem, ImgChanged, ZBufChanged,
-        ImgReady, ZBufReady, InCalc;
-    Fl_Window* MainWin;
-    std::ostringstream status_text;
-    Fl_Box* status;
-    ScrollWid* scroll;
-    Fl_Widget* pix;
-    Fl_Menu_Bar* menubar;
-    Fl_Help_Dialog* help;
-    unsigned char* ZBuf;
-    pathname act_file;
-    std::string ini_path, png_path;
-    char* _status_text_char;
-    //	const unsigned long _type;
+
+    FractalPreferences _fractal;
+    int _minSizeX, _minSizeY;
+    int _imgYStart, _zbufYStart;
+    bool _stop;
+    bool _imgInMem, _zBufInMem, _imgChanged, _zBufChanged,
+        _imgReady, _zBufReady, _inCalc;
+    Fl_Window* _mainWin;
+    std::ostringstream _statusText;
+    char* _statusText_cstr;
+    Fl_Box* _status;
+    ScrollWid* _scroll;
+    Fl_Widget* _pix;
+    Fl_Menu_Bar* _menubar;
+    Fl_Help_Dialog* _help;
+    uint8_t* _zBuf;
+    pathname _actFile;
+    std::string _iniPath, _pngPath;
+    bool _autoResize;
 };
 

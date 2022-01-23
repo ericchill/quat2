@@ -4,6 +4,7 @@
 #include <cmath>
 #include <unordered_map>
 #include <string>
+#include <mutex>
 
 
 typedef double (*NilaryFunctionPtr)();
@@ -21,12 +22,14 @@ class EvalSymbol {
     std::string _name;
 
     static std::unordered_map<std::string, int> _symbolMap;
+    static std::mutex _mapMutex;
 public:
     EvalSymbol(const std::string& name) : _name(name), _number(nameToInt(name)) {}
     int number() { return _number; }
     std::string name() { return _name; }
 private:
     int nameToInt(const std::string& name) {
+        std::lock_guard<std::mutex> guard(_mapMutex);
         if (_symbolMap.count(name) == 0) {
             _symbolMap[name] = static_cast<int>(_symbolMap.size());
         }

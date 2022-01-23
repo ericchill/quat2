@@ -18,7 +18,7 @@ public:
     const Vec3* normals() const { return _normal; }
     const Vec3* points() const { return _point; }
 
-    bool cutaway(const Vec3 x) const;
+    bool cutaway(const Vec3& x) const;
     bool cutnorm(const Quat& x1, const Quat& x2, Quat& nq) const;
 
     CutSpec(const json::value& jv);

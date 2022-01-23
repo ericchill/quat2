@@ -92,14 +92,33 @@ public:
 
     typedef T Type;
 
+    explicit LexicallyScopedRangeCheckedStorage(void) : _mem(nullptr), _nElems(0) {}
+
     explicit LexicallyScopedRangeCheckedStorage(size_t nElems) : _nElems(nElems) {
         _mem = new T[nElems]();
     }
     explicit LexicallyScopedRangeCheckedStorage(size_t nElems, const T* elems) : _nElems(nElems) {
         setElems(0, elems, nElems);
     }
+
     ~LexicallyScopedRangeCheckedStorage() {
-        delete []_mem;
+        if (nullptr != _mem) {
+            delete[]_mem;
+        }
+    }
+    void allocate(size_t nElems) {
+        assert(nullptr == _mem);
+        _mem = new T[nElems]();
+        _nElems = nElems;
+    }
+    operator T* () {
+        return _mem;
+    }
+    operator const T* () const {
+        return _mem;
+    }
+    T* operator->() {
+        return &*_mem;
     }
     const T* ptr() const {
         return _mem;
@@ -139,4 +158,28 @@ public:
 #endif
         memcpy(ptr, &_mem[offset], nToCopy * sizeof(T));
     }
+    void fill(const T x) {
+        for (size_t i = 0; i < _nElems; i++) {
+            _mem[i] = x;
+        }
+    }
+    void copyFrom(const LexicallyScopedRangeCheckedStorage& src, size_t srcOffset, size_t n, size_t dstOffset=0) {
+        if (srcOffset + n > src._nElems) {
+            throw std::out_of_range("Source out of range for LexicallyScopedRangeCheckedStorage::copy");
+        }
+        if (dstOffset + n > _nElems) {
+            throw std::out_of_range("Destination out of range for LexicallyScopedRangeCheckedStorage::copy");
+        }
+        memcpy(_mem + dstOffset, src + srcOffset, n * sizeof(T));
+    }
+};
+
+
+template<typename T>
+class PtrHandle {
+    T* _ptr;
+public:
+    PtrHandle(T* p) : _ptr(p) {}
+    T& operator*() { return *_ptr;  }
+    operator T() { return _ptr; }
 };

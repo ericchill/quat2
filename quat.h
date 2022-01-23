@@ -5,57 +5,61 @@
 #include "qmath.h" 
 #include "parameters.h"
 
-/*#include "png.h"*/
+class Expression;
 
 
-/* DUMMY function prototypes */
-int DUMMY_Initialize(std::ostream& errorMsg, int x, int y);
-int DUMMY_Done();
-int DUMMY_getline(unsigned char* line, int y, long xres, ZFlag whichbuf);
-int DUMMY_check_event(void);
-int DUMMY_Change_Name(const char* s);
-void DUMMY_eol(int line);
-
-int TranslateColorFormula(std::ostream& errorMsg, const char* colscheme);
-int formatExternToIntern(FractalSpec& frac, FractalView& view);
-int formatInternToExtern(FractalSpec& frac, FractalView& view);
-
-class LinePutter {
+class Quater {
 public:
-    virtual int putLine(long x1, long x2, long xres, int Y, unsigned char* Buf, bool useZBuf) = 0;
-    virtual void eol(int) = 0;
+    virtual void initialize(std::ostream& errorMsg, int x, int y) {
+        std::ignore = errorMsg;
+        std::ignore = x;
+        std::ignore = y;
+    }
+    virtual void done() {}
+    virtual void getline(uint8_t* line, int y, long xres, ZFlag whichBuf) {
+        std::ignore = line;
+        std::ignore = y;
+        std::ignore = xres;
+        std::ignore = whichBuf;
+    }
+    virtual void putLine(long x1, long x2, long xres, int Y, uint8_t* Buf, bool useZBuf) = 0;
+    virtual bool checkEvent() { return false; }
+    virtual void changeName(const char* s) {
+        std::ignore = s;
+    }
+    virtual void eol(int line) {
+        std::ignore = line;
+    }
 };
 
 /* Creates image from given parameters. Wants external format of frac & view */
 int CreateImage(
+    Quater& quatDriver,
     std::ostream& errorMsg,
-    int* xstart, int* ystart,
+    int* ystart,
     FractalPreferences& prefs,
-    ZFlag zflag,
-    LinePutter& lineDst);
+    ZFlag zflag);
 
 /* Creates ZBuffer from given parameters. Wants external format of
    frac & view
 */
 int CreateZBuf(
+    Quater& quatDriver,
     std::ostream& errorMsg,
-    int* xstart,
     int* ystart,
-    FractalPreferences& fractal,
-    LinePutter& lineDst);
+    FractalPreferences& fractal);
 
-int InitGraphics(
+void InitGraphics(
+    Quater& quatDriver,
     std::ostream& errorMsg,
     FractalPreferences& fractal,
-    bool ready,
-    int* xadd, int* yadd, 
     bool useZBuf);
 
 /* pngfile: string of basename, without path (only for title bar) */
 /* png: _opened_ png filename */
 /* png filename returns _closed_ */
 /*      and initialized (png_info, png_internal) */
-/* if png==NULL, no filename is written */
+/* if png==nullptr, no filename is written */
 /* also closes graphics, resets keyboard mode */
 /* wants external format for light-source and bailout */
 /* zflag: decides what to calculate,
@@ -66,27 +70,22 @@ int InitGraphics(
 class PNGFile;
 
 int CalculateFractal(
+    Quater& quatDriver,
     std::ostream& errorMsg,
     char* pngfile,
     FILE** png,
     PNGFile* png_internal,
     ZFlag zflag,
-    int* xstart, int* ystart,
-    /* int xadd, int yadd, */
-    ViewBasis* rbase,
-    ViewBasis* srbase,
-    ViewBasis* lbase,
-    ViewBasis* slbase,
-    FractalPreferences& fractal,
-    LinePutter& lineDst);
+    int* ystart,
+    ViewBasis& rbase,
+    ViewBasis& srbase,
+    ViewBasis& lbase,
+    ViewBasis& slbase,
+    FractalPreferences& fractal);
 
 
-extern time_t calc_time;
-
-extern Quat* GlobalOrbit;
-#define MAXITER (GlobalOrbit[0][0])
-#define LASTITER (GlobalOrbit[0][1])
-#define LASTORBIT (GlobalOrbit[0][2])
+template<typename T>
+inline T KLUDGE_PAD(T x) { return x + 10; }
 
 
 #endif /* QUAT_KERNEL_QUAT_H */
